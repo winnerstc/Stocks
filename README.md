@@ -1,265 +1,252 @@
-Here is a **professional, complete, production-grade README.md** for your repository.
-It covers:
-✅ Real-time stock ingestion
-✅ API usage
-✅ Kafka → HDFS → Hive ETL
-✅ AI/ML models (Logistic Regression, Random Forest, XGBoost, LGBM, ExtraTrees, GradientBoosting, SVM-RBF, kNN, GaussianNB, MLP)
-✅ Gemini API predictions
-✅ Using balance sheet, cash flow, income-statement data
-✅ Future roadmap + architecture diagram (ASCII)
+Real-Time Stock Pipeline and AI Prediction System
+Overview
 
-You can **copy/paste directly** into your GitHub README.md.
+This project implements a real-time financial data ingestion, analytics, and prediction platform. It collects quarterly financial statements and market data, processes them through a streaming and data lake architecture, and applies multiple machine learning models and large language models to predict next-quarter financial performance.
 
----
+Primary prediction targets:
 
-# 📈 Real-Time Stock Pipeline & AI Prediction System
+Next-quarter revenue
 
-A complete real-time stock analysis pipeline that ingests live financial data, processes it into a data lake, transforms it for analytics, and uses multiple AI/ML models — including Google Gemini — to predict next-quarter revenue, EPS, and net income.
+Next-quarter net income
 
-🚀 Overview
+Next-quarter earnings per share (EPS)
 
-This project builds a **real-time financial analytics and prediction system** using:
+Key Capabilities
 
-Data & Storage
+Real-time financial data ingestion
 
-* 📡 **Stock Market API**
-* 📑 **Balance Sheet**, **Cash Flow**, **Income Statement**
-* 🔄 Standardized **Q1 / Q2 / Q3 / Q4** ingestion
-* 📦 **Apache Kafka** for real-time streaming
-* 🗂 **HDFS** for raw data lake storage
-* 🏛 **Apache Hive** for data transformation
+Kafka-based streaming architecture
 
-### **AI & Machine Learning**
+HDFS-backed raw data lake
 
-* 🤖 Google Gemini API (LLM predictions)
- 📊 Traditional ML models:
+Hive-based ETL and analytical modeling
 
-  * Logistic Regression
-  * Random Forest Classifier
-  * XGBoost Classifier
-  * LightGBM Classifier
-  * Extra Trees Classifier
-  * Gradient Boosting
-  * SVM (RBF Kernel)
-  * k-Nearest Neighbors
-  * Gaussian Naïve Bayes
-  * MLP Neural Network (scikit-learn)
+Feature engineering on structured financial data
 
-The final goal is to **predict next quarter performance** for major stocks such as:
-AAPL, MSFT, NVDA, AVGO, GOOGL, UNH, MRK, JPM, V, BAC, PYPL, GS, WFC, HOOD, XOM, CVX, MRO, WMT, COST, TGT, and more.
+Traditional machine learning and ensemble models
 
----
+Hybrid predictions using Google Gemini API
 
-🏗 System Architecture
+End-to-end testing coverage
 
-```
-             ┌──────────────────┐
-             │  Stock API (FMP) │
-             └─────────┬────────┘
-                       │ (Q1–Q4 Financials)
-                ┌──────▼───────┐
-                │ Kafka Stream │
-                └──────┬───────┘
-                (Raw JSON events)
-                       │
-              ┌────────▼────────┐
-              │      HDFS       │
-              │  Data Lake RAW  │
-              └────────┬────────┘
-                       │
-              ┌────────▼────────┐
-              │      Hive       │
-              │  Transform/ETL  │
-              └────────┬────────┘
-                       │
-          ┌────────────▼────────────┐
-          │    Feature Engineering   │
-          └────────────┬────────────┘
-                       │
-       ┌───────────────▼────────────────┐
-       │     Machine Learning Models    │
-       │  (LR, RF, XGBoost, LGBM, SVM…) │
-       └───────────────┬────────────────┘
-                       │
-     ┌─────────────────▼─────────────────┐
-     │         Gemini LLM Prediction     │
-     └─────────────────┬─────────────────┘
-                       │
-          ┌────────────▼────────────┐
-          │   Prediction Output     │
-          │   Revenue / Net Income  │
-          │   EPS Next Quarter      │
-          └─────────────────────────┘
-```
+System Architecture
 
-🔌 Data Sources
+             +---------------------+
+             |   Stock API (FMP)   |
+             +----------+----------+
+                        |
+                 Quarterly Financials
+                        |
+              +---------v----------+
+              |    Kafka Streams   |
+              +---------+----------+
+                        |
+                  Raw JSON Events
+                        |
+              +---------v----------+
+              |        HDFS        |
+              |   Raw Data Lake    |
+              +---------+----------+
+                        |
+              +---------v----------+
+              |        Hive        |
+              |  ETL / Modeling   |
+              +---------+----------+
+                        |
+              +---------v----------+
+              | Feature Engineering|
+              +---------+----------+
+                        |
+        +---------------v----------------+
+        |   Machine Learning Models      |
+        | (LR, RF, XGB, LGBM, SVM, etc.) |
+        +---------------+----------------+
+                        |
+              +---------v----------+
+              |   Gemini AI Model  |
+              +---------+----------+
+                        |
+              +---------v----------+
+              |   Prediction Output|
+              +--------------------+
+Data Sources
 
-We use the **Financial Modeling Prep API (stable endpoint)**:
+Financial data is retrieved using the Financial Modeling Prep (FMP) API.
 
-Example API calls:
+Example API Endpoints
 
-```
 https://financialmodelingprep.com/stable/income-statement?symbol=AAPL&period=Q1&apikey=YOUR_KEY
 https://financialmodelingprep.com/stable/balance-sheet-statement?symbol=AAPL&apikey=YOUR_KEY
 https://financialmodelingprep.com/stable/cash-flow-statement?symbol=AAPL&apikey=YOUR_KEY
-```
+Financial Coverage
 
-All quarterly data is loaded:
+Income statement
 
-* Q1
-* Q2
-* Q3
-* Q4
+Balance sheet
 
-All stocks listed in `tickers.txt` or within the script are processed automatically.
+Cash flow statement
 
-🚚 Real-Time Data Ingestion (Kafka)
+Quarterly data (Q1, Q2, Q3, Q4)
 
-The pipeline streams data like:
+Real-Time Data Ingestion
 
-* Stock prices
-* API financial statements
-* Company metadata
+Kafka streams:
 
-Each record is published into Kafka topics:
+Market prices
 
-```
+Quarterly financial statements
+
+Company metadata
+
+Kafka Topics
 stocks.raw
 stocks.financials
 stocks.quarterly
-```
 
-Kafka → HDFS sink writes raw JSON to:
+HDFS Storage Layout
+/user/<username>/stocks/raw/YYYY/MM/DD/
 
-```
-/user/<name>/stocks/raw/YYYY/MM/DD
-```
 
-🗂 ETL in Hive
+Raw JSON is stored unchanged for replay and audit purposes.
 
-Hive transforms the data into analytics-ready tables:
+ETL Processing with Hive
 
-```
+External tables are created for analytics:
+
 CREATE EXTERNAL TABLE income_statements (...)
 CREATE EXTERNAL TABLE balance_sheets (...)
 CREATE EXTERNAL TABLE cash_flows (...)
-```
 
-Transformations include:
+Transformations
 
-* Converting strings → numeric
-* Date normalization
-* Handling missing quarterly data
-* Combining multiple sources into a master table
+String to numeric casting
 
-🧪 Feature Engineering
+Date normalization
+
+Missing quarter handling
+
+Dataset consolidation
+
+Feature Engineering
 
 Features include:
 
-* Revenue YoY, QoQ
-* EPS change
-* Net income margin
-* Debt-to-equity
-* Free cash flow
-* Operating income growth
-* Volatility indicators
-* Rolling averages
-* Model-ready numeric vectors
+Year-over-year revenue growth
 
-This dataset feeds all ML models.
+Quarter-over-quarter revenue growth
 
-🤖 Machine Learning Models
+EPS change
 
-The following models are trained:
+Net income margin
 
-Classification / Regression Models
+Debt-to-equity ratio
 
-* Logistic Regression
-* Random Forest
-* Extra Trees
-* Gradient Boosting
-* XGBoost
-* LightGBM
-* SVM (RBF Kernel)
-* k-Nearest Neighbors
-* Gaussian Naïve Bayes
-* MLPClassifier (Neural Network)
+Free cash flow trends
 
-Each model outputs:
+Operating income growth
 
-* 📈 Next quarter Revenue prediction
-* 🏦 Next quarter Net Income
-* 💵 Next quarter EPS
-* 🎯 Confidence score
+Volatility indicators
 
-✨ Gemini AI Prediction
+Rolling aggregates
 
-We combine structured ML models with **Gemini LLM reasoning**.
+All features are converted to numeric vectors.
 
-The prompt includes:
+Machine Learning Models
 
-* Last 4 quarters financials
-* Full income statement
-* Full balance sheet
-* Full cash flow
-* Market conditions
-* Analyst expectations
-* ML model predictions
+Supported models:
 
-Gemini produces a final “hybrid AI” answer.
+Logistic regression
 
- 📤 Output
+Random forest
 
-Final JSON looks like:
+Extra trees
 
-```json
+Gradient boosting
+
+XGBoost
+
+LightGBM
+
+Support vector machine (RBF)
+
+k-nearest neighbors
+
+Gaussian naive Bayes
+
+Multilayer perceptron
+
+Each model predicts:
+
+Next-quarter revenue
+
+Next-quarter net income
+
+Next-quarter EPS
+
+Confidence score
+
+Gemini AI Integration
+
+Gemini is used for reasoning on top of structured ML outputs.
+
+Prompt inputs:
+
+Last four quarters of financials
+
+Full income statement
+
+Full balance sheet
+
+Full cash flow statement
+
+Market context
+
+ML model predictions
+
+Prediction Output Format
 {
   "symbol": "AAPL",
   "predicted_revenue_q_next": 121500000000,
   "predicted_eps_q_next": 1.32,
   "predicted_net_income_q_next": 28900000000,
   "ml_model_used": "XGBoost",
-  "gemini_reasoning": "Based on YoY revenue acceleration..."
+  "gemini_reasoning": "Based on recent revenue growth and margin trends"
 }
-```
- 🧪 Unit Testing
+
+Testing
 
 Testing includes:
 
-* API call unit tests (mocked)
-* Kafka producer simulation tests
-* HDFS/Hive integration tests
-* ML model accuracy tests
-* Format checks (revenue formatting, EPS formatting, rounding)
-* End-to-end pipeline test
+Mocked API unit tests
 
----
+Kafka producer and consumer tests
 
-## 🛠 Tech Stack
+HDFS and Hive integration tests
 
-| Layer         | Technology                      |
-| ------------- | ------------------------------- |
-| API           | Financial Modeling Prep         |
-| Streaming     | Kafka                           |
-| Storage       | HDFS                            |
-| Processing    | Hive / PySpark                  |
-| ML            | scikit-learn, XGBoost, LightGBM |
-| LLM           | Google Gemini API               |
-| Pipeline      | Python                          |
-| Orchestration | Airflow (optional)              |
+Feature validation tests
 
- 📅 Roadmap
+Model accuracy checks
 
-* [ ] Add Airflow DAGs
-* [ ] Deploy ML models as REST API
-* [ ] Add real-time dashboard (Grafana or Streamlit)
-* [ ] Integrate feature store
-* [ ] Add LLM fine-tuning mode
+End-to-end pipeline tests
 
-If you'd like, I can also generate:
+Technology Stack
+Layer	Technology
+API	Financial Modeling Prep
+Streaming	Kafka
+Storage	HDFS
+Processing	Hive, PySpark
+ML	scikit-learn, XGBoost, LightGBM
+LLM	Google Gemini API
+Pipeline	Python
+Orchestration	Airflow (optional)
+Roadmap
 
-✅ a diagram image version
-✅ a Dockerfile for the whole system
-✅ the exact folder structure for your repo
-✅ CI/CD YAML (GitHub Actions)
-✅ badges (build/pass/status)
+Add Airflow DAG orchestration
+
+Deploy ML models as REST services
+
+Build real-time dashboards
+
+Introduce a feature store
+
+Add LLM fine-tuning support
