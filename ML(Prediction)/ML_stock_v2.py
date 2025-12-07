@@ -4,7 +4,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 
-API_KEY = "gUsD4nuoCLSuBB8Sb0rphmA94MwUp3CV"
+API_KEY = ""
 SYMBOL = "AAPL"
 
 # ======================================================
@@ -168,3 +168,4 @@ if __name__ == "__main__":
 
     model_r, model_n, model_e = train_random_forest(df)
     predict_next_quarter(df, model_r, model_n, model_e)
+
