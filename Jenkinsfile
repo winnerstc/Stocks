@@ -2,20 +2,18 @@ pipeline {
     agent any
 
     environment {
-        SPARK3 = '/opt/cloudera/parcels/SPARK3/bin/spark-submit'
+        // This path exists on every CDH 7.1.7 cluster that has Spark 3 parcel activated
+        SPARK3_SUBMIT = '/opt/cloudera/parcels/SPARK3_ON_YARN/bin/spark-submit'
     }
 
     stages {
         stage('1 – Balance Sheet Producer') {
             steps {
-                echo "Running Producer – Spark 3 on CDH"
+                echo "Starting Producer with Spark 3"
                 sh '''
-                ${SPARK3} \
-                  --master yarn \
-                  --deploy-mode client \
-                  --num-executors 1 \
-                  --executor-cores 1 \
-                  --executor-memory 1g \
+                ${SPARK3_SUBMIT} \
+                  --master yarn --deploy-mode client \
+                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
                   --driver-memory 1g \
                   --conf spark.yarn.maxAppAttempts=1 \
                   --conf spark.dynamicAllocation.enabled=false \
@@ -32,14 +30,11 @@ pipeline {
 
         stage('2 – Balance Sheet Consumer') {
             steps {
-                echo "Running Consumer – Spark 3 on CDH"
+                echo "Starting Consumer with Spark 3"
                 sh '''
-                ${SPARK3} \
-                  --master yarn \
-                  --deploy-mode client \
-                  --num-executors 1 \
-                  --executor-cores 1 \
-                  --executor-memory 1g \
+                ${SPARK3_SUBMIT} \
+                  --master yarn --deploy-mode client \
+                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
                   --driver-memory 1g \
                   --conf spark.yarn.maxAppAttempts=1 \
                   --conf spark.dynamicAllocation.enabled=false \
@@ -56,7 +51,7 @@ pipeline {
     }
 
     post {
-        success { echo "Done – both stages succeeded" }
-        failure { echo "Failed – check YARN logs for the container that died" }
+        success { echo "Both stages succeeded – Spark 3 working perfectly" }
+        failure { echo "Check the path or YARN logs" }
     }
 }
