@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        PYSPARK_PYTHON = 'python3'
+        PYSPARK_PYTHON = 'python2'
     }
     triggers { 
         cron('55 23 * * *') 
