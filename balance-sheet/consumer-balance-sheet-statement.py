@@ -12,7 +12,10 @@ spark = SparkSession.builder \
 # --- Configuration ---
 kafka_bootstrap = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 topic = "balance-sheet-statement-topic"
-OUTPUT_PATH = "/user/jenkins/balance_sheet_data"  # Jenkins home directory in HDFS
+HIVE_DATABASE = "alandb"
+HIVE_TABLE = "balance_sheet"
+# Location jenkins can write to
+HDFS_LOCATION = "/user/jenkins/balance_sheet_data"
 
 # --- Schema Definition ---
 json_schema = StructType([
@@ -111,21 +114,34 @@ try:
 except Exception as e:
     print(f"Error during count operation: {e}")
 
-# --- Save to HDFS (Jenkins has permissions here) ---
-print(f"Writing data to HDFS: {OUTPUT_PATH}")
+# --- Ensure Database Exists ---
+spark.sql(f"CREATE DATABASE IF NOT EXISTS {HIVE_DATABASE}")
+print(f"✓ Database {HIVE_DATABASE} ready")
 
+# --- Check if Table Exists (Spark 2.4 Compatible) ---
 try:
-    # Write as CSV to HDFS location jenkins can access
+    spark.sql(f"DESCRIBE {HIVE_DATABASE}.{HIVE_TABLE}")
+    table_exists = True
+    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} exists.")
+except Exception:
+    table_exists = False
+    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} does not exist.")
+
+if not table_exists:
+    print(f"Creating external table {HIVE_DATABASE}.{HIVE_TABLE}...")
+    
+    # First, write data to HDFS location jenkins can access
     parsed_df.write \
         .format("csv") \
         .option("header", "true") \
         .mode("overwrite") \
-        .save(OUTPUT_PATH)
+        .save(HDFS_LOCATION)
     
-    print(f"✓ Data successfully written to: {OUTPUT_PATH}")
-    print(f"\nTo load into Hive later, run in Hue/Beeline:")
-    print(f"""
-    CREATE EXTERNAL TABLE IF NOT EXISTS alandb.balance_sheet (
+    print(f"✓ Data written to: {HDFS_LOCATION}")
+    
+    # Now create external table pointing to that location
+    create_table_sql = f"""
+    CREATE EXTERNAL TABLE {HIVE_DATABASE}.{HIVE_TABLE} (
         date STRING,
         symbol STRING,
         reportedCurrency STRING,
@@ -191,13 +207,28 @@ try:
     ROW FORMAT DELIMITED
     FIELDS TERMINATED BY ','
     STORED AS TEXTFILE
-    LOCATION '{OUTPUT_PATH}'
-    TBLPROPERTIES ('skip.header.line.count'='1');
-    """)
+    LOCATION '{HDFS_LOCATION}'
+    TBLPROPERTIES ('skip.header.line.count'='1')
+    """
     
-except Exception as e:
-    print(f"Error writing to HDFS: {e}")
-    raise
+    spark.sql(create_table_sql)
+    print(f"✓ External table created: {HIVE_DATABASE}.{HIVE_TABLE}")
+
+else:
+    print(f"Appending data to {HIVE_DATABASE}.{HIVE_TABLE}...")
+    
+    # Append to existing HDFS location
+    parsed_df.write \
+        .format("csv") \
+        .option("header", "true") \
+        .mode("append") \
+        .save(HDFS_LOCATION)
+    
+    print(f"✓ Data appended to: {HDFS_LOCATION}")
+
+print(f"\nYou can now query in Hive/Hue with:")
+print(f"  SELECT COUNT(*) FROM {HIVE_DATABASE}.{HIVE_TABLE};")
+print(f"  SELECT * FROM {HIVE_DATABASE}.{HIVE_TABLE} LIMIT 10;")
 
 # Stop Spark session
 spark.stop()
