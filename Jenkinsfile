@@ -11,12 +11,12 @@ pipeline {
                     ${SPARK_SUBMIT} \
                       --master yarn \
                       --deploy-mode client \
-                      --executor-memory 1g \
+                      --executor-memory 512m \
                       --executor-cores 1 \
                       --num-executors 1 \
-                      --driver-memory 1g \
-                      --conf spark.executor.memoryOverhead=256m \
-                      --conf spark.driver.memoryOverhead=256m \
+                      --driver-memory 512m \
+                      --conf spark.executor.memoryOverhead=128m \
+                      --conf spark.driver.memoryOverhead=128m \
                       --conf spark.yarn.maxAppAttempts=1 \
                       --conf spark.pyspark.python=python3 \
                       --conf spark.pyspark.driver.python=python3 \
