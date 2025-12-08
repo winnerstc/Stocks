@@ -3,15 +3,30 @@ pipeline {
 
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
-        
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
                       '--conf spark.pyspark.driver.python=/usr/bin/python3.6'
-
         DRIVER_MEMORY = '1g'
         EXECUTOR_MEMORY = '1g'
     }
 
     stages {
+        stage('Unit Tests') {
+            steps {
+                echo '=== Running Financial Pipeline Unit Tests ==='
+                sh '''
+                    echo "INCOME STATEMENT TESTS:"
+                    python3 tests/test_producer_income_statement.py
+                    
+                    echo "BALANCE SHEET TESTS:"
+                    python3 tests/test_producer_balance_statement.py
+                    
+                    echo "CASH FLOW TESTS:"
+                    python3 tests/test_producer_cash_statement.py
+                    
+                    echo "ALL TESTS PASSED!"
+                '''
+            }
+        }
 
         stage('Producer: Balance Sheet') {
             steps {
