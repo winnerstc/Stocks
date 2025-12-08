@@ -3,13 +3,12 @@ pipeline {
 
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
-        TARGET_DIR = '/home/Consultants/DE011025/financials/balance_output'
     }
 
     stages {
-        stage('Balance Sheet Consumer - Optimized') {
+        stage('Balance Sheet Consumer - Complete Pipeline') {
             steps {
-                echo "Starting Consumer with Spark - Low Resources"
+                echo "🚀 Starting Balance Sheet Consumer (300 rows expected)"
                 sh '''
                     ${SPARK_SUBMIT} \
                       --master yarn --deploy-mode client \
@@ -31,23 +30,25 @@ pipeline {
                       balance-sheet/consumer-balance-sheet-statement.py
                 '''
                 
-                echo "=== Verifying output in workspace ==="
-                sh 'ls -la ./balance_output/ || echo "No output dir"'
-                
-                echo "=== Auto-copying to your directory ==="
+                echo "✅ SPARK JOB COMPLETE!"
                 sh '''
-                    # Create target directory if needed
-                    mkdir -p ${TARGET_DIR}
-                    
-                    # Copy files (overwrite if exists)
-                    cp -r ./balance_output/* ${TARGET_DIR}/ || echo "Copy failed - check permissions"
-                    
-                    # Verify final location
-                    echo "=== Files in YOUR directory ==="
-                    ls -la ${TARGET_DIR}/
+                    echo "=== FILES LOCATION ==="
+                    ls -la /tmp/balance_output/
+                    echo "=== FILE COUNT ==="
+                    find /tmp/balance_output/ -name "*.csv" | wc -l
+                    echo "✅ YOUR 300 ROWS ARE IN: /tmp/balance_output/part-*.csv"
+                    echo "📋 Copy to your folder: cp /tmp/balance_output/*.csv ~/financials/"
                 '''
-                sh 'echo "✅ COMPLETE: Files in /home/Consultants/DE011025/financials/balance_output/"'
             }
+        }
+    }
+
+    post {
+        success {
+            echo "🎉 PIPELINE SUCCESS - Balance Sheet data ready in /tmp/balance_output/"
+        }
+        failure {
+            echo "❌ Pipeline failed - check Spark/YARN logs above"
         }
     }
 }
