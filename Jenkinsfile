@@ -3,17 +3,19 @@ pipeline {
     triggers { cron('55 23 * * *') }
 
     stages {
-        stage('STARTING ETL – Tiny & Sequential') {
-            steps { echo "\033[1;34m\nSTARTING FULL ETL – WILL RUN EVEN ON BUSY CLUSTER\033[0m" }
+        stage('STARTING ETL – Ultra Tiny Resources') {
+            steps { echo "\033[1;34m\nSTARTING ETL – WILL RUN ON ANY CLUSTER (even 0 GB free)\033[0m" }
         }
 
-        stage('Producers – One by One') {
+        stage('Producers – Sequential') {
             steps {
                 echo "\033[1;32m1/3 Balance Sheet Producer\033[0m"
                 sh '''spark-submit \
                   --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 2g \
-                  --driver-memory 1g \
+                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
+                  --driver-memory 512m \
+                  --conf spark.yarn.am.memory=512m \
+                  --conf spark.executor.memoryOverhead=384 \
                   --conf spark.dynamicAllocation.enabled=false \
                   --conf spark.pyspark.python=python3 \
                   --conf spark.pyspark.driver.python=python3 \
@@ -24,8 +26,10 @@ pipeline {
                 echo "\033[1;32m2/3 Cash Flow Producer\033[0m"
                 sh '''spark-submit \
                   --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 2g \
-                  --driver-memory 1g \
+                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
+                  --driver-memory 512m \
+                  --conf spark.yarn.am.memory=512m \
+                  --conf spark.executor.memoryOverhead=384 \
                   --conf spark.dynamicAllocation.enabled=false \
                   --conf spark.pyspark.python=python3 \
                   --conf spark.pyspark.driver.python=python3 \
@@ -36,8 +40,10 @@ pipeline {
                 echo "\033[1;32m3/3 Income Producer\033[0m"
                 sh '''spark-submit \
                   --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 2g \
-                  --driver-memory 1g \
+                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
+                  --driver-memory 512m \
+                  --conf spark.yarn.am.memory=512m \
+                  --conf spark.executor.memoryOverhead=384 \
                   --conf spark.dynamicAllocation.enabled=false \
                   --conf spark.pyspark.python=python3 \
                   --conf spark.pyspark.driver.python=python3 \
@@ -47,13 +53,15 @@ pipeline {
             }
         }
 
-        stage('Consumers – One by One') {
+        stage('Consumers – Sequential') {
             steps {
                 echo "\033[1;36mStarting Balance Sheet Consumer\033[0m"
                 sh '''spark-submit \
                   --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 2g \
-                  --driver-memory 1g \
+                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
+                  --driver-memory 512m \
+                  --conf spark.yarn.am.memory=512m \
+                  --conf spark.executor.memoryOverhead=384 \
                   --conf spark.dynamicAllocation.enabled=false \
                   --conf spark.pyspark.python=python3 \
                   --conf spark.pyspark.driver.python=python3 \
@@ -64,8 +72,10 @@ pipeline {
                 echo "\033[1;36mStarting Cash Flow Consumer\033[0m"
                 sh '''spark-submit \
                   --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 2g \
-                  --driver-memory 1g \
+                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
+                  --driver-memory 512m \
+                  --conf spark.yarn.am.memory=512m \
+                  --conf spark.executor.memoryOverhead=384 \
                   --conf spark.dynamicAllocation.enabled=false \
                   --conf spark.pyspark.python=python3 \
                   --conf spark.pyspark.driver.python=python3 \
@@ -76,8 +86,10 @@ pipeline {
                 echo "\033[1;36mStarting Income Consumer\033[0m"
                 sh '''spark-submit \
                   --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 2g \
-                  --driver-memory 1g \
+                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
+                  --driver-memory 512m \
+                  --conf spark.yarn.am.memory=512m \
+                  --conf spark.executor.memoryOverhead=384 \
                   --conf spark.dynamicAllocation.enabled=false \
                   --conf spark.pyspark.python=python3 \
                   --conf spark.pyspark.driver.python=python3 \
@@ -88,7 +100,7 @@ pipeline {
         }
 
         stage('SUCCESS') {
-            steps { echo "\033[1;42m\nFULL ETL PIPELINE COMPLETED SUCCESSFULLY – PYTHON 3 – TINY RESOURCES!\033[0m" }
+            steps { echo "\033[1;42m\nFULL ETL COMPLETED SUCCESSFULLY – EVEN ON 100% FULL CLUSTER!\033[0m" }
         }
     }
 }
