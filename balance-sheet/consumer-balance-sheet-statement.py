@@ -13,7 +13,6 @@ spark = SparkSession.builder \
 # --- Configuration ---
 kafka_bootstrap = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 topic = "balance-sheet-statement-topic"
-# Define the TEMPORARY LOCAL PATH relative to your current directory
 # This directory MUST NOT exist when the job runs if mode('overwrite') is used
 LOCAL_TEMP_PATH = "/home/Consultants/DE011025/stocks/balance-sheet/balance_output"
 FINAL_HDFS_PATH = "hdfs://ip-172-31-8-235.eu-west-2.compute.internal:9000/tmp/DE011025/stocks-data/stocks-income-statement-data"
@@ -24,7 +23,6 @@ if os.path.exists(LOCAL_TEMP_PATH):
     shutil.rmtree(LOCAL_TEMP_PATH)
 
 # --- Schema Definition ---
-# *** UPDATED: Added companyName at the end to match the producer's output ***
 json_schema = StructType([
     StructField("date", StringType(), True),
     StructField("symbol", StringType(), True),
@@ -86,7 +84,7 @@ json_schema = StructType([
     StructField("totalInvestments", LongType(), True),
     StructField("totalDebt", LongType(), True),
     StructField("netDebt", LongType(), True),
-    StructField("companyName", StringType(), True) # <-- NEW FIELD
+    StructField("companyName", StringType(), True)
 ])
 
 # --- Kafka Read ---
@@ -120,7 +118,6 @@ except Exception as e:
     print(f"Error during count operation: {e}")
 
 # --- Local Save Operation ---
-# Use repartition(1) to ensure only ONE output file is created locally
 parsed_df.repartition(1) \
     .write \
     .format("csv") \
@@ -134,3 +131,4 @@ print(f"Final HDFS Path: {FINAL_HDFS_PATH}")
 
 # Stop Spark session
 spark.stop()
+
