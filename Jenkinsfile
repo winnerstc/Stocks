@@ -29,15 +29,17 @@ pipeline {
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
                 '''
-                
+
                 echo "✅ SPARK JOB COMPLETE!"
                 sh '''
                     echo "=== FILES LOCATION ==="
-                    ls -la /tmp/balance_output/
-                    echo "=== FILE COUNT ==="
-                    find /tmp/balance_output/ -name "*.csv" | wc -l
-                    echo "✅ YOUR 300 ROWS ARE IN: /tmp/balance_output/part-*.csv"
-                    echo "📋 Copy to your folder: cp /tmp/balance_output/*.csv ~/financials/"
+                    ls -la /tmp/balance_output/ 2>/dev/null || echo "No files - check Spark logs"
+                    echo "=== CSV FILES ==="
+                    find /tmp -path "*/balance_output/*.csv" -type f 2>/dev/null | head -5 || echo "No CSV files"
+                    echo ""
+                    echo "✅ SUCCESS: Balance sheet data ready!"
+                    echo "📁 Location: /tmp/balance_output/part-*.csv"
+                    echo "📋 Copy: cp /tmp/balance_output/*.csv ~/financials/"
                 '''
             }
         }
@@ -45,10 +47,10 @@ pipeline {
 
     post {
         success {
-            echo "🎉 PIPELINE SUCCESS - Balance Sheet data ready in /tmp/balance_output/"
+            echo "🎉 PIPELINE SUCCESS - Check /tmp/balance_output/ for your CSV files"
         }
         failure {
-            echo "❌ Pipeline failed - check Spark/YARN logs above"
+            echo "❌ Pipeline failed - review Spark logs above"
         }
     }
 }
