@@ -1,56 +1,22 @@
 pipeline {
     agent any
+
     environment {
         PYSPARK_PYTHON = 'python2'
     }
-    triggers { 
-        cron('55 23 * * *') 
+
+    triggers {
+        cron('55 23 * * *') // daily at 23:55
     }
 
     stages {
-        stage('Producers – parallel') {
-            parallel {
-                stage('Balance Sheet Producer') { 
-                    steps { 
-                        sh 'spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 balance-sheet/producer-balance-sheet-statement.py' 
-                    } 
-                }
-                stage('Cash Flow Producer') { 
-                    steps { 
-                        sh 'spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 cash-flow/producer-cash-flow-statement.py' 
-                    } 
-                }
-                stage('Income Producer') { 
-                    steps { 
-                        sh 'spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 income/producer-income-statement.py' 
-                    } 
-                }
-            }
-        }
-
-        stage('Consumers – after all producers') {
+        stage('Balance Sheet Producer & Consumer') {
             steps {
-                echo 'Waiting for all producers to finish…'
-            }
-        }
+                echo 'Running Balance Sheet Producer...'
+                sh 'spark-submit --master yarn --deploy-mode client --num-executors 2 --executor-memory 2G --executor-cores 1 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 balance-sheet/producer-balance-sheet-statement.py'
 
-        stage('Consumers – parallel') {
-            parallel {
-                stage('Balance Sheet Consumer') { 
-                    steps { 
-                        sh 'spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 balance-sheet/consumer-balance-sheet-statement.py' 
-                    } 
-                }
-                stage('Cash Flow Consumer') { 
-                    steps { 
-                        sh 'spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 cash-flow/consumer-cash-flow-statement.py' 
-                    } 
-                }
-                stage('Income Consumer') { 
-                    steps { 
-                        sh 'spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 income/consumer-income-statement.py' 
-                    } 
-                }
+                echo 'Running Balance Sheet Consumer...'
+                sh 'spark-submit --master yarn --deploy-mode client --num-executors 2 --executor-memory 2G --executor-cores 1 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 balance-sheet/consumer-balance-sheet-statement.py'
             }
         }
     }
