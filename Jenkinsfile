@@ -7,13 +7,11 @@ pipeline {
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
                       '--conf spark.pyspark.driver.python=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
-                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6 ' +
-                      '--conf spark.sql.adaptive.enabled=false ' +
-                      '--conf spark.sql.adaptive.coalescePartitions.enabled=false'
+                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
 
         DRIVER_MEMORY = '512m'
-        EXECUTOR_MEMORY = '384m'    // Further reduced
-        MEMORY_OVERHEAD = '192m'    // Further reduced  
+        EXECUTOR_MEMORY = '512m'     // CDH minimum requirement
+        MEMORY_OVERHEAD = '256m'
         EXECUTOR_CORES = '1'
         NUM_EXECUTORS = '1'
     }
