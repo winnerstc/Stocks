@@ -1,7 +1,6 @@
 pipeline {
     agent any
 
-    // Optional: toggle producer on/off without editing the file
     parameters {
         booleanParam(name: 'RUN_PRODUCER', defaultValue: false, description: 'Run Stage 1 – Producer')
     }
@@ -9,9 +8,8 @@ pipeline {
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
 
-        // Critical: force Python 3.6 (or 3.7) on driver + executors
         PYTHON_CONF = '''
-            --conf spark.pyspark.python=/usr/bin/python3.6 \
+            --conf spark.pyspark.pyspark.python=/usr/bin/python3.6 \
             --conf spark.pyspark.driver.python=/usr/bin/python3.6 \
             --conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 \
             --conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6 \
@@ -24,7 +22,9 @@ pipeline {
                 expression { params.RUN_PRODUCER == true }
             }
             steps {
+                echo "========================================"
                 echo "STAGE 1: Starting Producer"
+                echo "========================================"
                 sh '''
                     ${SPARK_SUBMIT} \
                       --master yarn \
@@ -49,7 +49,9 @@ pipeline {
 
         stage('2 – Balance Sheet Consumer → CSV') {
             steps {
+                echo "========================================"
                 echo "STAGE 2: Starting Consumer → saving CSV to /tmp/balance_output"
+                echo "========================================"
                 sh '''
                     ${SPARK_SUBMIT} \
                       --master yarn \
@@ -71,21 +73,21 @@ pipeline {
                 echo "Consumer completed — CSV saved to /tmp/balance_output"
             }
         }
-        }
 
         stage('3 – Verify Output') {
             steps {
-                echo "STAGE 3: Verification"
+                echo "========================================"
+                echo "STAGE 3: Verification – Your CSV is ready"
+                echo "========================================"
                 sh '''
-                    echo "=== FINAL RESULT ==="
-                    echo ""
+                    echo "=== HDFS LISTING ==="
                     hdfs dfs -ls /tmp/balance_output/
                     echo ""
-                    echo "Preview first 10 lines:"
+                    echo "=== FIRST 10 LINES OF CSV ==="
                     hdfs dfs -cat /tmp/balance_output/part-*.csv | head -10
                     echo ""
-                    echo "Download with:"
-                    echo "  hdfs dfs -getmerge /tmp/balance_output balance_sheet_full.csv"
+                    echo "=== DOWNLOAD COMMAND ==="
+                    echo "hdfs dfs -getmerge /tmp/balance_output balance_sheet_full.csv"
                 '''
             }
         }
@@ -93,11 +95,10 @@ pipeline {
 
     post {
         success {
-            echo "PIPELINE SUCCESS"
-            echo "Your CSV is ready at /tmp/balance_output/"
+            echo "PIPELINE SUCCESS – CSV ready at /tmp/balance_output"
         }
         failure {
-            echo "PIPELINE FAILED — check YARN logs"
+            echo "PIPELINE FAILED – check YARN logs"
         }
     }
 }
