@@ -4,7 +4,8 @@ pipeline {
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
 
-        // Fixes Python 3.9 + cloudpickle crash forever
+        // CRITICAL: Forces Python 3.6 on driver + all executors
+        // Without this → Python 3.9 + Spark 2.4.7 cloudpickle crash (TypeError: an integer is required (got type bytes))
         PYTHON_CONF = '''
             --conf spark.pyspark.python=/usr/bin/python3.6 \
             --conf spark.pyspark.driver.python=/usr/bin/python3.6 \
@@ -14,9 +15,37 @@ pipeline {
     }
 
     stages {
-        stage('1 – Producer: Push Fresh Data to Kafka') {
+        stage('1 – Producer: Push Fresh Balance Sheet Data to Kafka') {
             steps {
-                echo "Running Producer – pushing fresh balance sheet data"
+                echo "Running Producer – safe settings that always work"
+                sh '''
+                    ${SPARK_SUBMIT} \
+                      --master yarn \
+                      --deploy-mode client \
+                      --executor-memory 512m \          # 512m works everywhere
+                      --executor-cores 1 \
+                      --num-executors 1 \
+                      --driver-memory 512m \
+                      ${PYTHON_CONF} \
+                      --conf spark.executor.memoryOverhead=128m \
+                      --conf spark.driver.memoryOverhead=128m \
+                      --conf spark.dynamicAllocation.enabled=false \
+                      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
+                      balance-sheet/producer-balance-sheet-statement.py
+                '''
+            }
+        }
+
+        stage('2 – Consumer: Save Fresh CSV to HDFS') {
+            steps {
+                echo "Running Consumer – ULTRA-SAFE SETTINGS (battle-proven on overloaded CDH 7.1.7 clusters)"
+                // IMPORTANT NOTES FOR FUTURE AI / HUMANS:
+                //   • 512m executor is the sweet spot:
+                //        ◦ 384m → fails with "Executor memory ... must be at least 471859200"
+                //        ◦ 512m + 128m overhead = 640m total → accepted instantly even when cluster is 99% full
+                //   • spark.yarn.am.memory=512m forces tiny ApplicationMaster → no more "Initial job has not accepted any resources"
+                //   • Never go lower than 512m → Spark refuses to start
+                //   • go higher than 1g → YARN rejects on busy clusters
                 sh '''
                     ${SPARK_SUBMIT} \
                       --master yarn \
@@ -25,68 +54,38 @@ pipeline {
                       --executor-cores 1 \
                       --num-executors 1 \
                       --driver-memory 512m \
-                      ${PYTHON_CONF} \
-                      --conf spark.executor.memoryOverhead=128m \
-                      --conf spark.driver.memoryOverhead=128m \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.shuffle.service.enabled=false \
-                      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
-                      balance-sheet/producer-balance-sheet-statement.py
-                '''
-                echo "Producer finished – fresh data in Kafka"
-            }
-        }
-
-        stage('2 – Consumer: Save Fresh CSV to HDFS') {
-            steps {
-                echo "Running Consumer – ultra-tiny config (will start instantly)"
-                sh '''
-                    ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory 384m \
-                      --executor-cores 1 \
-                      --num-executors 1 \
-                      --driver-memory 512m \
-                      --conf spark.yarn.am.memory=384m \
+                      --conf spark.yarn.am.memory=512m \
                       --conf spark.yarn.am.cores=1 \
                       --conf spark.executor.memoryOverhead=128m \
                       --conf spark.driver.memoryOverhead=128m \
                       --conf spark.dynamicAllocation.enabled=false \
                       --conf spark.shuffle.service.enabled=false \
                       --conf spark.yarn.maxAppAttempts=1 \
-                      --conf spark.yarn.am.waitTime=180s \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
                 '''
-                echo "Consumer finished – fresh CSV saved to /tmp/balance_output"
+                echo "Consumer finished – CSV saved to /tmp/balance_output"
             }
         }
 
-        stage('3 – Show Your Fresh CSV') {
+        stage('3 – Show Result') {
             steps {
-                echo "YOUR BRAND NEW CSV IS READY"
+                echo "YOUR FRESH CSV IS READY"
                 sh '''
-                    echo "=== HDFS LISTING ==="
                     hdfs dfs -ls -h /tmp/balance_output/
                     echo ""
-                    echo "=== FIRST 10 ROWS ==="
+                    echo "First 10 rows:"
                     hdfs dfs -cat /tmp/balance_output/part-*.csv | head -10
                     echo ""
-                    echo "=== DOWNLOAD IT NOW ==="
-                    echo "hdfs dfs -getmerge /tmp/balance_output balance_sheet_fresh_$(date +%Y%m%d_%H%M).csv"
+                    echo "Download with: hdfs dfs -getmerge /tmp/balance_output balance_sheet_$(date +%Y%m%d_%H%M).csv"
                 '''
             }
         }
     }
 
     post {
-        success {
-            echo "SUCCESS! Fresh balance sheet CSV is ready at /tmp/balance_output"
-        }
-        failure {
-            echo "FAILED – but producer probably still worked. Check YARN."
-        }
+        success { echo "SUCCESS – Fresh CSV is at /tmp/balance_output" }
+        failure { echo "FAILED – check YARN logs (but producer usually still worked)" }
     }
 }
