@@ -1,0 +1,371 @@
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, GradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+import warnings
+import requests
+
+warnings.filterwarnings("ignore")
+
+# --------------------------
+# API Key
+# --------------------------
+API_KEY = "pFCxJgnWdFdi1fSNWbS8mZDDh4lkZNrI"
+
+# --------------------------
+# Tickers
+# --------------------------
+TICKERS = [
+    "NVDA", "AAPL", "MSFT", "GOOGL", "UNH",
+    "JPM", "V", "BAC", "PYPL", "C", "GS",
+    "WFC", "HOOD", "XOM", "CVX", "MRO", "WMT",
+    "COST", "TGT"
+]
+
+# --------------------------
+# Helpers
+# --------------------------
+def format_currency(number):
+    try:
+        if pd.isna(number):
+            return "N/A"
+        number = float(number)
+        if abs(number) >= 1000:
+            return f"${number:,.2f}"
+        return f"${number:.2f}"
+    except (TypeError, ValueError):
+        return str(number)
+
+# --------------------------
+# Fetch financials
+# --------------------------
+def fetch_quarterly_statement(ticker, statement_type):
+    endpoint_map = {
+        "income-statement": "income-statement",
+        "balance-sheet-statement": "balance-sheet-statement",
+        "cash-flow-statement": "cash-flow-statement"
+    }
+    endpoint = endpoint_map.get(statement_type, statement_type)
+    url = f"https://financialmodelingprep.com/stable/{endpoint}?symbol={ticker}&period=quarter&apikey={API_KEY}"
+    
+    try:
+        r = requests.get(url, timeout=15)
+        if r.status_code != 200:
+            print(f"HTTP {r.status_code} error for {ticker}")
+            return pd.DataFrame()
+        data = r.json()
+        if not data:
+            print(f"No data returned for {ticker}")
+            return pd.DataFrame()
+        df = pd.DataFrame(data)
+        if len(df) > 0:
+            if 'date' not in df.columns:
+                for col in df.columns:
+                    if 'date' in col.lower():
+                        df = df.rename(columns={col: 'date'})
+                        break
+            df["ticker"] = ticker
+            return df
+        return pd.DataFrame()
+    except Exception as e:
+        print(f"Error fetching {ticker}: {e}")
+        return pd.DataFrame()
+
+def fetch_all_statements(ticker):
+    income = fetch_quarterly_statement(ticker, "income-statement")
+    if income.empty:
+        return None
+    return {"income": income}
+
+# --------------------------
+# Transform income statement
+# --------------------------
+def transform_income(df):
+    column_mapping = {
+        "revenue": ["revenue", "totalRevenue", "Revenue", "sales", "Sales"],
+        "netIncome": ["netIncome", "netincome", "netIncomeLoss", "netProfit"],
+        "eps": ["eps", "epsdiluted", "EarningsPerShareDiluted", "earningsPerShare"],
+        "grossProfit": ["grossProfit", "grossprofit"],
+        "operatingIncome": ["operatingIncome", "operatingincome", "operatingProfit"]
+    }
+    clean_data = {"date": df["date"]}
+    found_cols = []
+    for target_col, possible_names in column_mapping.items():
+        for name in possible_names:
+            if name in df.columns:
+                clean_data[target_col] = pd.to_numeric(df[name], errors='coerce')
+                found_cols.append(target_col)
+                break
+    if "revenue" not in found_cols or "netIncome" not in found_cols:
+        raise ValueError("Missing required columns for financial analysis")
+    df_clean = pd.DataFrame(clean_data)
+    if "eps" in df_clean.columns:
+        df_clean = df_clean.rename(columns={"eps": "epsDiluted"})
+    if "revenue" in df_clean.columns and "grossProfit" in df_clean.columns:
+        df_clean["gross_margin"] = df_clean["grossProfit"] / df_clean["revenue"].replace(0, np.nan)
+    if "revenue" in df_clean.columns and "operatingIncome" in df_clean.columns:
+        df_clean["operating_margin"] = df_clean["operatingIncome"] / df_clean["revenue"].replace(0, np.nan)
+    df_clean["date"] = pd.to_datetime(df_clean["date"], errors="coerce")
+    essential_cols = ["date", "revenue", "netIncome"]
+    df_clean = df_clean.dropna(subset=[col for col in essential_cols if col in df_clean.columns])
+    df_clean = df_clean.sort_values("date").reset_index(drop=True)
+    return df_clean
+
+# --------------------------
+# Feature preparation
+# --------------------------
+def prepare_features(df):
+    df = df.sort_values("date").copy()
+    df["revenue_lag1"] = df["revenue"].shift(1)
+    df["netIncome_lag1"] = df["netIncome"].shift(1)
+    if "epsDiluted" in df.columns:
+        df["epsDiluted_lag1"] = df["epsDiluted"].shift(1)
+        eps_lag = df["epsDiluted_lag1"].replace(0, np.nan)
+        df["eps_growth"] = (df["epsDiluted"] - df["epsDiluted_lag1"]) / eps_lag
+        df["eps_up"] = (df["eps_growth"] > 0).astype(int)
+    else:
+        ni_lag = df["netIncome_lag1"].replace(0, np.nan)
+        df["ni_growth"] = (df["netIncome"] - df["netIncome_lag1"]) / ni_lag
+        df["eps_up"] = (df["ni_growth"] > 0).astype(int)
+    
+    # Add lagged margin features if they exist
+    if "gross_margin" in df.columns:
+        df["gross_margin_lag1"] = df["gross_margin"].shift(1)
+    if "operating_margin" in df.columns:
+        df["operating_margin_lag1"] = df["operating_margin"].shift(1)
+        
+    df = df.dropna().reset_index(drop=True)
+    return df
+
+# --------------------------
+# Regression
+# --------------------------
+def train_regression(df):
+    df = prepare_features(df)
+    features = [f for f in ["revenue_lag1", "netIncome_lag1", "epsDiluted_lag1", 
+                            "gross_margin_lag1", "operating_margin_lag1"] if f in df.columns]
+    if len(features) == 0:
+        raise ValueError("No features available for regression")
+    
+    X = df[features]
+    y_rev = df["revenue"]
+    y_net = df["netIncome"]
+    y_eps = df["epsDiluted"] if "epsDiluted" in df.columns else df["netIncome"] / 1000000
+    
+    # Ensure we have enough data for splitting
+    min_samples = 3
+    if len(X) < min_samples:
+        # Use all data for training if insufficient
+        X_train = X.copy()
+        X_test = pd.DataFrame(columns=features)
+        y_train_rev = y_rev.copy()
+        y_test_rev = pd.Series(dtype=float)
+        y_train_net = y_net.copy()
+        y_test_net = pd.Series(dtype=float)
+        y_train_eps = y_eps.copy()
+        y_test_eps = pd.Series(dtype=float)
+    else:
+        X_train, X_test, y_train_rev, y_test_rev = train_test_split(X, y_rev, test_size=0.2, random_state=42)
+        _, _, y_train_net, y_test_net = train_test_split(X, y_net, test_size=0.2, random_state=42)
+        _, _, y_train_eps, y_test_eps = train_test_split(X, y_eps, test_size=0.2, random_state=42)
+    
+    # Adjust n_estimators based on available data
+    n_estimators = min(100, max(10, len(X_train)))
+    
+    m_rev = RandomForestRegressor(n_estimators=n_estimators, random_state=42, n_jobs=-1)
+    m_net = RandomForestRegressor(n_estimators=n_estimators, random_state=42, n_jobs=-1)
+    m_eps = RandomForestRegressor(n_estimators=n_estimators, random_state=42, n_jobs=-1)
+    
+    m_rev.fit(X_train, y_train_rev)
+    m_net.fit(X_train, y_train_net)
+    m_eps.fit(X_train, y_train_eps)
+    
+    return m_rev, m_net, m_eps
+
+# --------------------------
+# Classification
+# --------------------------
+def train_classification(df):
+    df = prepare_features(df)
+    features = [f for f in ["revenue_lag1", "netIncome_lag1", "epsDiluted_lag1", 
+                            "gross_margin_lag1", "operating_margin_lag1"] if f in df.columns]
+    
+    if len(features) == 0:
+        return {}
+    
+    X = df[features]
+    y = df["eps_up"]
+    
+    models = {
+        "LogisticRegression": LogisticRegression(max_iter=1000, random_state=42),
+        "RandomForest": RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1),
+        "GradientBoosting": GradientBoostingClassifier(n_estimators=100, random_state=42),
+    }
+    
+    results = {}
+    
+    for name, model in models.items():
+        try:
+            # Simple approach: train on all available data for small datasets
+            # This avoids the train_test_split stratification issues
+            if len(X) < 8:
+                # For very small datasets, use all data for training
+                model.fit(X, y)
+                # Use training accuracy as proxy
+                y_pred = model.predict(X)
+                acc = accuracy_score(y, y_pred)
+                results[name] = {"model": model, "accuracy": acc}
+            else:
+                # For larger datasets, use train_test_split without stratification
+                # to avoid the stratification error
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X, y, test_size=0.2, random_state=42, stratify=None
+                )
+                model.fit(X_train, y_train)
+                y_pred = model.predict(X_test)
+                acc = accuracy_score(y_test, y_pred)
+                results[name] = {"model": model, "accuracy": acc}
+                
+        except Exception as e:
+            # If model fails, skip it
+            print(f"  Warning: {name} failed: {str(e)[:50]}")
+            results[name] = {"model": None, "accuracy": 0}
+    
+    return results
+
+# --------------------------
+# Predict next quarter
+# --------------------------
+def predict_next_quarter(df, reg_models, class_models):
+    df = df.sort_values("date")
+    last = df.iloc[-1]
+
+    # Regression predictions
+    m_rev, m_net, m_eps = reg_models
+    used_features = m_rev.feature_names_in_  # Only features used in training
+    feature_dict = {}
+    for feat in used_features:
+        base_col = feat.replace("_lag1", "")
+        feature_dict[feat] = last[base_col] if base_col in last else 0
+    features = pd.DataFrame([feature_dict])
+
+    pred_rev = m_rev.predict(features)[0]
+    pred_net = m_net.predict(features)[0]
+    pred_eps = m_eps.predict(features)[0]
+
+    # Classification vote
+    votes = []
+    for model_info in class_models.values():
+        model = model_info.get("model")
+        if model is not None:
+            try:
+                # Get intersection of available features
+                if hasattr(model, 'feature_names_in_'):
+                    class_feats = [f for f in model.feature_names_in_ if f in features.columns]
+                else:
+                    class_feats = [f for f in features.columns if f in df.columns]
+                
+                if len(class_feats) > 0:
+                    votes.append(model.predict(features[class_feats])[0])
+            except:
+                continue
+    
+    # Determine EPS direction
+    if votes:
+        eps_up_vote = 1 if sum(votes) > len(votes)/2 else 0
+    else:
+        # Fallback: use the last observed direction
+        if "eps_up" in df.columns and len(df) > 0:
+            eps_up_vote = int(df["eps_up"].iloc[-1])
+        else:
+            # If no history, default to positive
+            eps_up_vote = 1
+    
+    return pred_rev, pred_net, pred_eps, eps_up_vote
+
+# --------------------------
+# Analysis
+# --------------------------
+def basic_analysis(ticker, rev, net, eps, eps_up):
+    direction = "increase" if eps_up == 1 else "decrease"
+    growth_status = "positive" if eps_up == 1 else "mixed"
+    analysis = f"""
+Analysis for {ticker}: 
+Predicted revenue: ${rev:,.2f}
+Predicted net income: ${net:,.2f}
+Predicted EPS: ${eps:,.3f}
+Direction: Expected EPS {direction}
+This suggests {growth_status} performance for the next quarter.
+"""
+    return analysis.strip()
+
+# --------------------------
+# Run single ticker
+# --------------------------
+def run_single_ticker(ticker, use_analysis=True):
+    print(f"\n{'='*60}\nANALYZING: {ticker}\n{'='*60}")
+    statements = fetch_all_statements(ticker)
+    if statements is None:
+        print(f"No data available for {ticker}")
+        return None
+    income = transform_income(statements["income"])
+    if income.shape[0] < 4:
+        print(f"Insufficient history: {income.shape[0]} quarters")
+        return None
+    reg_models = train_regression(income)
+    class_models = train_classification(income)
+    pred_rev, pred_net, pred_eps, eps_up = predict_next_quarter(income, reg_models, class_models)
+    print(f"\n  PREDICTIONS for {ticker} (Next Quarter Prediction):")
+    print(f"  {'Revenue:':<15} {format_currency(pred_rev):>20}")
+    print(f"  {'Net Income:':<15} {format_currency(pred_net):>20}")
+    print(f"  {'EPS:':<15} ${pred_eps:>19.3f}")
+    print(f"  {'EPS Direction:':<15} {'↑ Increase' if eps_up == 1 else '↓ Decrease':>20}")
+    analysis = basic_analysis(ticker, pred_rev, pred_net, pred_eps, eps_up) if use_analysis else "Analysis disabled"
+    if use_analysis:
+        print(f"\n  BASIC ANALYSIS:\n  {analysis}")
+    return {
+        "ticker": ticker,
+        "revenue": pred_rev,
+        "net_income": pred_net,
+        "eps": pred_eps,
+        "eps_up": eps_up,
+        "analysis": analysis,
+        "history_quarters": income.shape[0]
+    }
+
+# --------------------------
+# Run all tickers
+# --------------------------
+def run_all_tickers(tickers=None, use_analysis=True):
+    if tickers is None:
+        tickers = TICKERS
+    results = []
+    for i, ticker in enumerate(tickers, 1):
+        print(f"\n[{i}/{len(tickers)}] ", end="")
+        res = run_single_ticker(ticker, use_analysis)
+        if res:
+            results.append(res)
+    if results:
+        results.sort(key=lambda x: x["revenue"], reverse=True)
+        print(f"\n{'='*80}\nSUMMARY\n{'='*80}")
+        print(f"{'Rank':<4} {'Ticker':<6} {'Revenue':<20} {'EPS':<10} {'Direction':<15} {'History Quarters':<20}")
+        print("-"*80)
+        for i, res in enumerate(results, 1):
+            direction = "↑" if res["eps_up"] == 1 else "↓"
+            print(f"{i:<4} {res['ticker']:<6} {format_currency(res['revenue']):<20} "
+                  f"${res['eps']:<9.3f} {direction:<15} {res['history_quarters']} quarters")
+    else:
+        print("No tickers were successfully analyzed")
+    return results
+
+# --------------------------
+# Main
+# --------------------------
+if __name__ == "__main__":
+    print("\nFinancial Quarterly Prediction System\n" + "="*50)
+    results = run_all_tickers()
+    if results:
+        pd.DataFrame(results).to_csv("financial_predictions.csv", index=False)
+        print("\nResults saved to financial_predictions.csv")
