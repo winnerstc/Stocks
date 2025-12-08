@@ -16,7 +16,7 @@ spark = SparkSession.builder.appName("FMP_Stocks_Producer_Income_Statement_Speci
 sc = spark.sparkContext
 
 # Configuration
-FMP_API_KEY = "LbPlecgcwjFxWyApsu0kERSifLgKZMnA"
+FMP_API_KEY = "6HjVcM7eUpvSEPuSYlUBIRg0OsSKdwLT"
 BOOTSTRAP_SERVERS = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 kafka_topic = "stocks-income-statement-topic" # Ensure this topic name is correct
 TIMEOUT = 2  # Timeout between each API call pause

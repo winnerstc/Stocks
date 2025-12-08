@@ -13,7 +13,7 @@ spark = SparkSession.builder.appName("FMP_Stocks_Producer_Specific_Quarters").ge
 sc = spark.sparkContext
 
 # Configuration
-FMP_API_KEY = "LbPlecgcwjFxWyApsu0kERSifLgKZMnA"
+FMP_API_KEY = "6HjVcM7eUpvSEPuSYlUBIRg0OsSKdwLT"
 BOOTSTRAP_SERVERS = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 kafka_topic = "balance-sheet-statement-topic"
 TIMEOUT = 2  # Timeout between each API call pause
