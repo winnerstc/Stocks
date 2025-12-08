@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
+        TARGET_DIR = '/home/Consultants/DE011025/financials/balance_output'
     }
 
     stages {
@@ -29,8 +30,23 @@ pipeline {
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
                 '''
-                sh 'ls -la /home/Consultants/DE011025/stocks/balance-sheet/balance_output/ || echo "No output dir"'
-                sh 'echo "✅ Consumer completed - CSV files ready for manual HDFS move"'
+                
+                echo "=== Verifying output in workspace ==="
+                sh 'ls -la ./balance_output/ || echo "No output dir"'
+                
+                echo "=== Auto-copying to your directory ==="
+                sh '''
+                    # Create target directory if needed
+                    mkdir -p ${TARGET_DIR}
+                    
+                    # Copy files (overwrite if exists)
+                    cp -r ./balance_output/* ${TARGET_DIR}/ || echo "Copy failed - check permissions"
+                    
+                    # Verify final location
+                    echo "=== Files in YOUR directory ==="
+                    ls -la ${TARGET_DIR}/
+                '''
+                sh 'echo "✅ COMPLETE: Files in /home/Consultants/DE011025/financials/balance_output/"'
             }
         }
     }
