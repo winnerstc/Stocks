@@ -1,27 +1,21 @@
 # -*- coding: utf-8 -*-
-# consumer-balance-sheet-statement.py - SAVES TO /tmp AUTOMATICALLY
+# consumer-balance-sheet-statement.py
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json
-from pyspark.sql.types import StructType, StructField, StringType, LongType
-import os
-import shutil
+from pyspark.sql.types import StructType, StructField, StringType, LongType, DoubleType, BooleanType
 
 spark = SparkSession.builder \
     .appName("Kafka_stocks_Consumer_Balance_Local_Save") \
+    .enableHiveSupport() \
     .getOrCreate()
 
 # --- Configuration ---
 kafka_bootstrap = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 topic = "balance-sheet-statement-topic"
-LOCAL_TEMP_PATH = "/tmp/balance_output"  # ✅ JENKINS CAN WRITE HERE
-FINAL_HDFS_PATH = "hdfs://ip-172-31-8-235.eu-west-2.compute.internal:9000/tmp/DE011025/stocks-data/stocks-balance-sheet-data"
+HIVE_DATABASE = "alandb"
+HIVE_TABLE = "balance_sheet"
 
-# Clean up previous local temp directory
-if os.path.exists(LOCAL_TEMP_PATH):
-    print(f"Cleaning up previous local directory: {LOCAL_TEMP_PATH}")
-    shutil.rmtree(LOCAL_TEMP_PATH)
-
-# --- Schema Definition (61 fields) ---
+# --- Schema Definition ---
 json_schema = StructType([
     StructField("date", StringType(), True),
     StructField("symbol", StringType(), True),
@@ -87,6 +81,7 @@ json_schema = StructType([
 ])
 
 # --- Kafka Read ---
+print("Reading from Kafka topic...")
 df = spark.read \
     .format("kafka") \
     .option("kafka.bootstrap.servers", kafka_bootstrap) \
@@ -96,31 +91,61 @@ df = spark.read \
     .load()
 
 # --- Data Parsing ---
+print("Parsing JSON data...")
 parsed_df = df.select(from_json(col("value").cast("string"), json_schema).alias("data")) \
     .select("data.*")
 
-# --- Data Validation ---
+########################################
+## Data Validation and Print Counts ##
+########################################
+
 try:
     row_count = parsed_df.count()
     column_count = len(parsed_df.columns)
+
     print("#############################")
     print(f"--- DataFrame Dimensions ---")
     print(f"Total Rows: **{row_count}**")
     print(f"Total Columns: **{column_count}**")
     print("#############################")
+
 except Exception as e:
     print(f"Error during count operation: {e}")
 
-# --- Save CSV to /tmp ---
-parsed_df.repartition(1) \
-    .write \
-    .format("csv") \
-    .option("header", "true") \
-    .mode("overwrite") \
-    .save(LOCAL_TEMP_PATH)
+# --- Ensure Database Exists ---
+spark.sql(f"CREATE DATABASE IF NOT EXISTS {HIVE_DATABASE}")
+print(f"✓ Database {HIVE_DATABASE} ready")
 
-print(f"✅ Data successfully saved to: {LOCAL_TEMP_PATH}")
-print(f"📁 Files: {LOCAL_TEMP_PATH}/part-*.csv")
+# --- Check if Table Exists ---
+table_exists = spark.catalog.tableExists(f"{HIVE_DATABASE}.{HIVE_TABLE}")
 
+if not table_exists:
+    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} does not exist. Creating...")
+    
+    # Create managed table with CSV format
+    parsed_df.write \
+        .format("csv") \
+        .option("header", "true") \
+        .mode("overwrite") \
+        .saveAsTable(f"{HIVE_DATABASE}.{HIVE_TABLE}")
+    
+    print(f"✓ Table created: {HIVE_DATABASE}.{HIVE_TABLE}")
+else:
+    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} exists. Appending data...")
+    
+    # Append to existing table
+    parsed_df.write \
+        .format("csv") \
+        .option("header", "true") \
+        .mode("append") \
+        .saveAsTable(f"{HIVE_DATABASE}.{HIVE_TABLE}")
+    
+    print(f"✓ Data appended to: {HIVE_DATABASE}.{HIVE_TABLE}")
+
+print(f"\nYou can now query in Hive/Hue with:")
+print(f"  SELECT COUNT(*) FROM {HIVE_DATABASE}.{HIVE_TABLE};")
+print(f"  SELECT * FROM {HIVE_DATABASE}.{HIVE_TABLE} LIMIT 10;")
+
+# Stop Spark session
 spark.stop()
-
+print("\n✓ Pipeline complete!")
