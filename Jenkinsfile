@@ -1,106 +1,23 @@
 pipeline {
     agent any
-    triggers { cron('55 23 * * *') }
+
+    environment {
+        PYSPARK_PYTHON = 'python3'
+    }
+
+    triggers {
+        cron('55 23 * * *') // daily at 23:55
+    }
 
     stages {
-        stage('STARTING ETL – Ultra Tiny Resources') {
-            steps { echo "\033[1;34m\nSTARTING ETL – WILL RUN ON ANY CLUSTER (even 0 GB free)\033[0m" }
-        }
-
-        stage('Producers – Sequential') {
+        stage('Balance Sheet Producer & Consumer') {
             steps {
-                echo "\033[1;32m1/3 Balance Sheet Producer\033[0m"
-                sh '''spark-submit \
-                  --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
-                  --driver-memory 512m \
-                  --conf spark.yarn.am.memory=512m \
-                  --conf spark.executor.memoryOverhead=384 \
-                  --conf spark.dynamicAllocation.enabled=false \
-                  --conf spark.pyspark.python=python3 \
-                  --conf spark.pyspark.driver.python=python3 \
-                  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.8 \
-                  balance-sheet/producer-balance-sheet-statement.py'''
-                echo "\033[1;32mBalance Sheet Producer DONE\033[0m"
+                echo 'Running Balance Sheet Producer...'
+                sh 'spark-submit --master yarn --deploy-mode client --num-executors 2 --executor-memory 2G --executor-cores 1 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 balance-sheet/producer-balance-sheet-statement.py'
 
-                echo "\033[1;32m2/3 Cash Flow Producer\033[0m"
-                sh '''spark-submit \
-                  --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
-                  --driver-memory 512m \
-                  --conf spark.yarn.am.memory=512m \
-                  --conf spark.executor.memoryOverhead=384 \
-                  --conf spark.dynamicAllocation.enabled=false \
-                  --conf spark.pyspark.python=python3 \
-                  --conf spark.pyspark.driver.python=python3 \
-                  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.8 \
-                  cash-flow/producer-cash-flow-statement.py'''
-                echo "\033[1;32mCash Flow Producer DONE\033[0m"
-
-                echo "\033[1;32m3/3 Income Producer\033[0m"
-                sh '''spark-submit \
-                  --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
-                  --driver-memory 512m \
-                  --conf spark.yarn.am.memory=512m \
-                  --conf spark.executor.memoryOverhead=384 \
-                  --conf spark.dynamicAllocation.enabled=false \
-                  --conf spark.pyspark.python=python3 \
-                  --conf spark.pyspark.driver.python=python3 \
-                  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.8 \
-                  income/producer-income-statement.py'''
-                echo "\033[1;32mIncome Producer DONE\033[0m"
+                echo 'Running Balance Sheet Consumer...'
+                sh 'spark-submit --master yarn --deploy-mode client --num-executors 2 --executor-memory 2G --executor-cores 1 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.4 balance-sheet/consumer-balance-sheet-statement.py'
             }
-        }
-
-        stage('Consumers – Sequential') {
-            steps {
-                echo "\033[1;36mStarting Balance Sheet Consumer\033[0m"
-                sh '''spark-submit \
-                  --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
-                  --driver-memory 512m \
-                  --conf spark.yarn.am.memory=512m \
-                  --conf spark.executor.memoryOverhead=384 \
-                  --conf spark.dynamicAllocation.enabled=false \
-                  --conf spark.pyspark.python=python3 \
-                  --conf spark.pyspark.driver.python=python3 \
-                  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.8 \
-                  balance-sheet/consumer-balance-sheet-statement.py'''
-                echo "\033[1;36mBalance Sheet Consumer DONE\033[0m"
-
-                echo "\033[1;36mStarting Cash Flow Consumer\033[0m"
-                sh '''spark-submit \
-                  --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
-                  --driver-memory 512m \
-                  --conf spark.yarn.am.memory=512m \
-                  --conf spark.executor.memoryOverhead=384 \
-                  --conf spark.dynamicAllocation.enabled=false \
-                  --conf spark.pyspark.python=python3 \
-                  --conf spark.pyspark.driver.python=python3 \
-                  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.8 \
-                  cash-flow/consumer-cash-flow-statement.py'''
-                echo "\033[1;36mCash Flow Consumer DONE\033[0m"
-
-                echo "\033[1;36mStarting Income Consumer\033[0m"
-                sh '''spark-submit \
-                  --master yarn --deploy-mode client \
-                  --num-executors 1 --executor-cores 1 --executor-memory 1g \
-                  --driver-memory 512m \
-                  --conf spark.yarn.am.memory=512m \
-                  --conf spark.executor.memoryOverhead=384 \
-                  --conf spark.dynamicAllocation.enabled=false \
-                  --conf spark.pyspark.python=python3 \
-                  --conf spark.pyspark.driver.python=python3 \
-                  --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.8 \
-                  income/consumer-income-statement.py'''
-                echo "\033[1;36mIncome Consumer DONE\033[0m"
-            }
-        }
-
-        stage('SUCCESS') {
-            steps { echo "\033[1;42m\nFULL ETL COMPLETED SUCCESSFULLY – EVEN ON 100% FULL CLUSTER!\033[0m" }
         }
     }
 }
