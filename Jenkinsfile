@@ -1,16 +1,30 @@
 pipeline {
     agent any
 
+    // Optional: toggle producer on/off without editing the file
+    parameters {
+        booleanParam(name: 'RUN_PRODUCER', defaultValue: false, description: 'Run Stage 1 – Producer')
+    }
+
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
+
+        // Critical: force Python 3.6 (or 3.7) on driver + executors
+        PYTHON_CONF = '''
+            --conf spark.pyspark.python=/usr/bin/python3.6 \
+            --conf spark.pyspark.driver.python=/usr/bin/python3.6 \
+            --conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 \
+            --conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6 \
+        '''
     }
 
     stages {
         stage('1 – Balance Sheet Producer') {
+            when {
+                expression { params.RUN_PRODUCER == true }
+            }
             steps {
-                echo "========================================"
                 echo "STAGE 1: Starting Producer"
-                echo "========================================"
                 sh '''
                     ${SPARK_SUBMIT} \
                       --master yarn \
@@ -19,64 +33,59 @@ pipeline {
                       --executor-cores 1 \
                       --num-executors 1 \
                       --driver-memory 512m \
+                      ${PYTHON_CONF} \
                       --conf spark.executor.memoryOverhead=128m \
                       --conf spark.driver.memoryOverhead=128m \
                       --conf spark.dynamicAllocation.enabled=false \
                       --conf spark.shuffle.service.enabled=false \
                       --conf spark.yarn.maxAppAttempts=1 \
-                      --conf spark.pyspark.python=python3 \
-                      --conf spark.pyspark.driver.python=python3 \
                       --conf spark.yarn.am.waitTime=300s \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/producer-balance-sheet-statement.py
                 '''
-                echo "✓ Producer completed - Data sent to Kafka"
+                echo "Producer completed - Data sent to Kafka"
             }
         }
 
-        stage('2 – Balance Sheet Consumer') {
+        stage('2 – Balance Sheet Consumer → CSV') {
             steps {
-                echo "========================================"
-                echo "STAGE 2: Starting Consumer (600 rows expected)"
-                echo "========================================"
+                echo "STAGE 2: Starting Consumer → saving CSV to /tmp/balance_output"
                 sh '''
                     ${SPARK_SUBMIT} \
                       --master yarn \
                       --deploy-mode client \
-                      --executor-memory 512m \
-                      --executor-cores 1 \
-                      --num-executors 1 \
-                      --driver-memory 512m \
-                      --conf spark.executor.memoryOverhead=128m \
-                      --conf spark.driver.memoryOverhead=128m \
+                      --executor-memory 1g \
+                      --executor-cores 2 \
+                      --num-executors 2 \
+                      --driver-memory 1g \
+                      ${PYTHON_CONF} \
+                      --conf spark.executor.memoryOverhead=256m \
+                      --conf spark.driver.memoryOverhead=256m \
                       --conf spark.dynamicAllocation.enabled=false \
                       --conf spark.shuffle.service.enabled=false \
                       --conf spark.yarn.maxAppAttempts=1 \
-                      --conf spark.pyspark.python=python3 \
-                      --conf spark.pyspark.driver.python=python3 \
                       --conf spark.yarn.am.waitTime=300s \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
                 '''
-                echo "✓ Consumer completed - Data written to Hive"
+                echo "Consumer completed — CSV saved to /tmp/balance_output"
             }
         }
-        
-        stage('3 – Verify Results') {
+        }
+
+        stage('3 – Verify Output') {
             steps {
-                echo "========================================"
                 echo "STAGE 3: Verification"
-                echo "========================================"
                 sh '''
-                    echo "=== PIPELINE COMPLETE ==="
+                    echo "=== FINAL RESULT ==="
                     echo ""
-                    echo "Data Location: alandb.balance_sheet (Hive table)"
+                    hdfs dfs -ls /tmp/balance_output/
                     echo ""
-                    echo "Verify in Hive/Hue with:"
-                    echo "  SELECT COUNT(*) FROM alandb.balance_sheet;"
-                    echo "  SELECT * FROM alandb.balance_sheet LIMIT 10;"
+                    echo "Preview first 10 lines:"
+                    hdfs dfs -cat /tmp/balance_output/part-*.csv | head -10
                     echo ""
-                    echo "Expected: ~600 rows"
+                    echo "Download with:"
+                    echo "  hdfs dfs -getmerge /tmp/balance_output balance_sheet_full.csv"
                 '''
             }
         }
@@ -84,20 +93,11 @@ pipeline {
 
     post {
         success {
-            echo "========================================"
-            echo "✓✓✓ PIPELINE SUCCESS ✓✓✓"
-            echo "========================================"
-            echo "Producer: Data sent to Kafka"
-            echo "Consumer: Data saved to alandb.balance_sheet"
-            echo "Query your Hive table to verify"
+            echo "PIPELINE SUCCESS"
+            echo "Your CSV is ready at /tmp/balance_output/"
         }
         failure {
-            echo "========================================"
-            echo "✗✗✗ PIPELINE FAILED ✗✗✗"
-            echo "========================================"
-            echo "Check YARN logs for details"
-            echo "Verify Kafka topic has data"
+            echo "PIPELINE FAILED — check YARN logs"
         }
     }
 }
-
