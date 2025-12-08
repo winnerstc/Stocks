@@ -2,20 +2,28 @@ pipeline {
     agent any
 
     environment {
+        // =========================
+        // Spark submit path
+        // =========================
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
 
-        // Enforce Python 3.6 → avoids cloudpickle / PySpark version issues
+        // =========================
+        // Enforce Python 3.6 to avoid cloudpickle / PySpark version issues
+        // =========================
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
                       '--conf spark.pyspark.driver.python=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
 
-        // Spark memory 
-        DRIVER_MEMORY = '1g'
-        EXECUTOR_MEMORY = '1g'
-        MEMORY_OVERHEAD = '512m'
+        // =========================
+        // Resource settings tuned for your cluster:
+        // 3 nodes, 8GB each, 4–8 vcores
+        // =========================
+        DRIVER_MEMORY = '512m'
+        EXECUTOR_MEMORY = '512m'
+        MEMORY_OVERHEAD = '256m'
         EXECUTOR_CORES = '1'
-        NUM_EXECUTORS = '2' 
+        NUM_EXECUTORS = '1'  // safe for YARN max container limits
     }
 
     stages {
