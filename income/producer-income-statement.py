@@ -16,7 +16,7 @@ spark = SparkSession.builder.appName("FMP_Stocks_Producer_Income_Statement_Speci
 sc = spark.sparkContext
 
 # Configuration
-FMP_API_KEY = "tiFaviFGi3xdigG3dp7OT7cHgnA0OBmu"
+FMP_API_KEY = "gUsD4nuoCLSuBB8Sb0rphmA94MwUp3CV"
 BOOTSTRAP_SERVERS = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 kafka_topic = "stocks-income-statement-topic" # Ensure this topic name is correct
 TIMEOUT = 2  # Timeout between each API call pause
@@ -32,7 +32,7 @@ if not os.path.exists(LOG_DIR):
 
 # List of tickers (Updated to match cash producer's structure)
 TICKERS = ["NVDA", "AAPL", "MSFT", "AVGO", "GOOGL", "UNH", "MRK", "JPM", "V", "BAC",
-           "PYPL", "C", "GS", "WFC", "HOOD", "XOM", "CVX", "MRO", "WMT", "COST", "TGT"]
+           "PYPL", "C", "XOM", "CVX", "MRO", "WMT", "COST", "TGT"]
 QUARTERS = ["Q1", "Q2", "Q3", "Q4"]
 
 # Map ticker symbols to full company names (Updated to match cash producer's structure)
@@ -40,8 +40,7 @@ TICKER_NAME_MAP = {
     "NVDA": "NVIDIA Corp", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "AVGO": "Broadcom Inc.",
     "GOOGL": "Alphabet Inc. (Class A)", "UNH": "UnitedHealth Group Inc.", "MRK": "Merck & Co., Inc.",
     "JPM": "JPMorgan Chase & Co.", "V": "Visa Inc.", "BAC": "Bank of America Corp.",
-    "PYPL": "PayPal Holdings, Inc.", "C": "Citigroup Inc.", "GS": "The Goldman Sachs Group, Inc.",
-    "WFC": "Wells Fargo & Company", "HOOD": "Robinhood Markets Inc.", "XOM": "Exxon Mobil Corp.",
+    "PYPL": "PayPal Holdings, Inc.", "C": "Citigroup Inc.", "XOM": "Exxon Mobil Corp.",
     "CVX": "Chevron Corp.", "MRO": "Marathon Oil Corp.", "WMT": "Walmart Inc.",
     "COST": "Costco Wholesale Corp.", "TGT": "Target Corp."
 }
@@ -114,3 +113,4 @@ producer.close()
 
 print(f"\nAll data ingestion completed successfully. Unloaded data logged to {LOG_FILE}.")
 spark.stop()
+

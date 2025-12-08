@@ -20,16 +20,15 @@ TIMEOUT = 2  # Timeout between each API call pause
 
 # *** UPDATED: TICKERS SYNCHRONIZED WITH CASH FLOW PRODUCER ***
 TICKERS = ["NVDA", "AAPL", "MSFT", "AVGO", "GOOGL", "UNH", "MRK", "JPM", "V", "BAC",
-           "PYPL", "C", "GS", "WFC", "HOOD", "XOM", "CVX", "MRO", "WMT", "COST", "TGT"]
+           "PYPL", "C", "XOM", "CVX", "MRO", "WMT", "COST", "TGT"]
 QUARTERS = ["Q1", "Q2", "Q3", "Q4"]
 
-# *** UPDATED: TICKER_NAME_MAP SYNCHRONIZED WITH CASH FLOW PRODUCER ***
+# Map ticker symbols to full company names (Updated to match cash producer's structure)
 TICKER_NAME_MAP = {
     "NVDA": "NVIDIA Corp", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "AVGO": "Broadcom Inc.",
     "GOOGL": "Alphabet Inc. (Class A)", "UNH": "UnitedHealth Group Inc.", "MRK": "Merck & Co., Inc.",
     "JPM": "JPMorgan Chase & Co.", "V": "Visa Inc.", "BAC": "Bank of America Corp.",
-    "PYPL": "PayPal Holdings, Inc.", "C": "Citigroup Inc.", "GS": "The Goldman Sachs Group, Inc.",
-    "WFC": "Wells Fargo & Company", "HOOD": "Robinhood Markets Inc.", "XOM": "Exxon Mobil Corp.",
+    "PYPL": "PayPal Holdings, Inc.", "C": "Citigroup Inc.", "XOM": "Exxon Mobil Corp.",
     "CVX": "Chevron Corp.", "MRO": "Marathon Oil Corp.", "WMT": "Walmart Inc.",
     "COST": "Costco Wholesale Corp.", "TGT": "Target Corp."
 }
