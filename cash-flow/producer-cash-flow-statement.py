@@ -16,7 +16,7 @@ spark = SparkSession.builder.appName("FMP_Stocks_Producer_Cash_Flow_Specific_Qua
 sc = spark.sparkContext
 
 # Configuration
-FMP_API_KEY = "gUsD4nuoCLSuBB8Sb0rphmA94MwUp3CV"
+FMP_API_KEY = "LbPlecgcwjFxWyApsu0kERSifLgKZMnA"
 BOOTSTRAP_SERVERS = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 kafka_topic = "cash-flow-statement-topic"
 TIMEOUT = 2  # Timeout between each API call pause
