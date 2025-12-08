@@ -25,6 +25,11 @@ pipeline {
         MEMORY_OVERHEAD = '512m'
         EXECUTOR_CORES = '1'
         NUM_EXECUTORS = '2'
+
+        // =========================
+        // YARN staging directory (owned by user "Consultants")
+        // =========================
+        STAGING_DIR = '/user/Consultants/.sparkStaging'
     }
 
     stages {
@@ -46,6 +51,7 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/producer-balance-sheet-statement.py
@@ -71,6 +77,7 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
@@ -96,6 +103,7 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       income/producer-income-statement.py
@@ -121,6 +129,7 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       income/consumer-income-statement.py
@@ -146,6 +155,7 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       cash-flow/producer-cash-flow-statement.py
@@ -171,6 +181,7 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       cash-flow/consumer-cash-flow-statement.py
