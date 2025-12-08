@@ -14,7 +14,7 @@ spark = SparkSession.builder \
 kafka_bootstrap = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 topic = "balance-sheet-statement-topic"
 # This directory MUST NOT exist when the job runs if mode('overwrite') is used
-LOCAL_TEMP_PATH = "/home/Consultants/DE011025/stocks/balance-sheet/balance_output"
+LOCAL_TEMP_PATH = "./balance_output"
 FINAL_HDFS_PATH = "hdfs://ip-172-31-8-235.eu-west-2.compute.internal:9000/tmp/DE011025/stocks-data/stocks-income-statement-data"
 
 # Clean up previous local temp directory before running
