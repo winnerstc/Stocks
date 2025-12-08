@@ -31,7 +31,7 @@ if not os.path.exists(LOG_DIR):
 # -----------------------------
 
 # List of tickers
-TICKERS = ["NVDA", "AAPL", "MSFT", "GOOGL", "UNH", "MRK", "JPM", "V", "BAC",
+TICKERS = ["NVDA", "AAPL", "MSFT", "GOOGL", "UNH", "JPM", "V", "BAC",
            "PYPL", "C", "XOM", "CVX", "MRO", "WMT", "COST"]
 QUARTERS = ["Q1", "Q2", "Q3", "Q4"]
 
