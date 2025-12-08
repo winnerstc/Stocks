@@ -2,34 +2,20 @@ pipeline {
     agent any
 
     environment {
-        // =========================
-        // Spark submit path
-        // =========================
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
 
-        // =========================
-        // Enforce Python 3.6 to avoid cloudpickle / PySpark version issues
-        // =========================
+        // Enforce Python 3.6 → avoids cloudpickle / PySpark version issues
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
                       '--conf spark.pyspark.driver.python=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
-                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6 ' +
-                      '--conf spark.eventLog.enabled=true ' +
-                      '--conf spark.eventLog.dir=hdfs://ip-172-31-3-80/user/spark/applicationHistory'
+                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
 
-        // =========================
-        // Resource settings tuned for your cluster (3 nodes, 8GB RAM each)
-        // =========================
+        // Spark memory / executor configuration (safe for most clusters)
         DRIVER_MEMORY = '1g'
         EXECUTOR_MEMORY = '1g'
         MEMORY_OVERHEAD = '512m'
         EXECUTOR_CORES = '1'
         NUM_EXECUTORS = '2'
-
-        // =========================
-        // YARN staging directory (owned by user "Consultants")
-        // =========================
-        STAGING_DIR = '/user/Consultants/.sparkStaging'
     }
 
     stages {
@@ -43,7 +29,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode cluster \
+                      --deploy-mode client \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -51,7 +37,6 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/producer-balance-sheet-statement.py
@@ -69,7 +54,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode cluster \
+                      --deploy-mode client \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -77,7 +62,6 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
@@ -95,7 +79,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode cluster \
+                      --deploy-mode client \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -103,7 +87,6 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       income/producer-income-statement.py
@@ -121,7 +104,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode cluster \
+                      --deploy-mode client \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -129,7 +112,6 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       income/consumer-income-statement.py
@@ -147,7 +129,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode cluster \
+                      --deploy-mode client \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -155,7 +137,6 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       cash-flow/producer-cash-flow-statement.py
@@ -173,7 +154,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode cluster \
+                      --deploy-mode client \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -181,7 +162,6 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.yarn.stagingDir=${STAGING_DIR} \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       cash-flow/consumer-cash-flow-statement.py
