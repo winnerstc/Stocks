@@ -10,12 +10,12 @@ pipeline {
                       '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
 
-        // Spark memory / executor configuration (safe for most clusters)
+        // Spark memory 
         DRIVER_MEMORY = '1g'
         EXECUTOR_MEMORY = '1g'
         MEMORY_OVERHEAD = '512m'
         EXECUTOR_CORES = '1'
-        NUM_EXECUTORS = '2' // small but enough for low-volume jobs
+        NUM_EXECUTORS = '2' 
     }
 
     stages {

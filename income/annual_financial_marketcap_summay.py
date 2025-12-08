@@ -91,7 +91,7 @@ try:
     df = spark.table(full_table_name)
     print(f"Successfully loaded table: {full_table_name}")
 
-    # --- Step 1: Perform Aggregation ---
+    # --- Perform Aggregation ---
     annual_summary_df = df.groupBy("symbol", "fiscalyear") \
         .agg(
         round(sum("revenue") / 1e9, 2).alias("Total_Revenue_Billions_USD"),
@@ -101,8 +101,8 @@ try:
 
     print(f"Aggregated data for {annual_summary_df.count()} symbol-year combos")
 
-    # --- Step 2: Enrich with Market Cap API Data ---
-    print("\n🚀 Starting API enrichment: Fetching Market Cap for each distinct symbol...")
+    # --- Join Income statement with Market Cap API Data ---
+    print("\n Starting API enrichment: Fetching Market Cap for each distinct symbol...")
     annual_summary_df.cache()
 
     # 2a. Get distinct symbols
@@ -133,7 +133,7 @@ try:
     final_df = annual_summary_df.join(market_data_df, on="symbol", how="left")
 
     # --- Step 3: Output Results ---
-    print("\n✅ Final Annual Financial Summary (Aggregated, Sorted, & Enriched):")
+    print("\n Final Annual Financial Summary (Aggregated, Sorted, & Enriched):")
     final_df.show(n=20, truncate=False)
 
     # Quick AAPL check
@@ -142,13 +142,13 @@ try:
         truncate=False)
 
     # Save to local file system
-    print(f"\n💾 Saving final data to: {LOCAL_OUTPUT_DIR}")
+    print(f"\n Saving final data to: {LOCAL_OUTPUT_DIR}")
     final_df.coalesce(1).write \
         .mode("overwrite") \
         .option("nullValue", "null") \
         .option("emptyValue", "") \
         .csv(LOCAL_OUTPUT_DIR, header=True)
-    print("✅ Temporary files saved. Consolidate with shell commands below.")
+    print(" Temporary files saved. Consolidate with shell commands below.")
 
     # Clean up
     annual_summary_df.unpersist()
