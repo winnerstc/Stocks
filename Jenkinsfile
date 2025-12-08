@@ -13,17 +13,18 @@ pipeline {
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
                       '--conf spark.pyspark.driver.python=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
-                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
+                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6 ' +
+                      '--conf spark.eventLog.enabled=true ' +
+                      '--conf spark.eventLog.dir=hdfs://ip-172-31-3-80/user/spark/applicationHistory'
 
         // =========================
-        // Resource settings tuned for your cluster:
-        // 3 nodes, 8GB each, 4–8 vcores
+        // Resource settings tuned for your cluster (3 nodes, 8GB RAM each)
         // =========================
         DRIVER_MEMORY = '512m'
         EXECUTOR_MEMORY = '512m'
         MEMORY_OVERHEAD = '256m'
         EXECUTOR_CORES = '1'
-        NUM_EXECUTORS = '1'  // safe for YARN max container limits
+        NUM_EXECUTORS = '1'
     }
 
     stages {
@@ -37,7 +38,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode client \
+                      --deploy-mode cluster \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -62,7 +63,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode client \
+                      --deploy-mode cluster \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -87,7 +88,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode client \
+                      --deploy-mode cluster \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -112,7 +113,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode client \
+                      --deploy-mode cluster \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -137,7 +138,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode client \
+                      --deploy-mode cluster \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
@@ -162,7 +163,7 @@ pipeline {
                 sh """
                     ${SPARK_SUBMIT} \
                       --master yarn \
-                      --deploy-mode client \
+                      --deploy-mode cluster \
                       --executor-memory ${EXECUTOR_MEMORY} \
                       --executor-cores ${EXECUTOR_CORES} \
                       --num-executors ${NUM_EXECUTORS} \
