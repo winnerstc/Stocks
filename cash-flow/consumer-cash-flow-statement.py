@@ -1,35 +1,30 @@
 # -*- coding: utf-8 -*-
-# consumer-income-statement.py
+# consumer-cash-flow-statement.py
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json
-from pyspark.sql.types import StructType, StructField, StringType, LongType, DoubleType, BooleanType
-import os
-import shutil
+from pyspark.sql.types import StructType, StructField, StringType, LongType
 
-spark = SparkSession.builder \
-    .appName("Kafka_stocks_Consumer_cash_flow_Local_Save") \
-    .getOrCreate()
+# ---------------------------
+# --- YOUR SETTINGS ---
+# ---------------------------
+KAFKA_BOOTSTRAP = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
+TOPIC = "cash-flow-statement-topic"
+OUTPUT_PATH = "/tmp/cash_flow_output"
 
-# --- Configuration ---
-kafka_bootstrap = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
-topic = "cash-flow-statement-topic"
-# Define the TEMPORARY LOCAL PATH relative to your current directory
-# This directory MUST NOT exist when the job runs if mode('overwrite') is used
-LOCAL_TEMP_PATH = "/home/Consultants/DE011025/stocks/cash-flow/cash_output"
-FINAL_HDFS_PATH = "hdfs://ip-172-31-8-235.eu-west-2.compute.internal:9000/tmp/DE011025/stocks-data/cash-flow-statement-data"
+# ---------------------------
+# --- Spark Session ---
+# ---------------------------
+spark = SparkSession.builder.appName("Kafka_Cash_Flow_Consumer").getOrCreate()
 
-# Clean up previous local temp directory before running
-if os.path.exists(LOCAL_TEMP_PATH):
-    print(f"Cleaning up previous local directory: {LOCAL_TEMP_PATH}")
-    shutil.rmtree(LOCAL_TEMP_PATH)
-
-# --- Correct Cash Flow Schema Definition ---
+# ---------------------------
+# --- Schema Definition ---
+# ---------------------------
 cash_flow_schema = StructType([
     StructField("date", StringType(), True),
     StructField("symbol", StringType(), True),
     StructField("reportedCurrency", StringType(), True),
     StructField("cik", StringType(), True),
-    StructField("fillingDate", StringType(), True),
+    StructField("filingDate", StringType(), True),
     StructField("acceptedDate", StringType(), True),
     StructField("fiscalYear", StringType(), True),
     StructField("period", StringType(), True),
@@ -63,51 +58,49 @@ cash_flow_schema = StructType([
     StructField("operatingCashFlow", LongType(), True),
     StructField("capitalExpenditure", LongType(), True),
     StructField("freeCashFlow", LongType(), True),
-    StructField("companyName", StringType(), True) # Added in producer
+    StructField("companyName", StringType(), True)
 ])
 
+# ---------------------------
 # --- Kafka Read ---
-df = spark.read \
-    .format("kafka") \
-    .option("kafka.bootstrap.servers", kafka_bootstrap) \
-    .option("subscribe", topic) \
+# ---------------------------
+df = spark.read.format("kafka") \
+    .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP) \
+    .option("subscribe", TOPIC) \
     .option("startingOffsets", "earliest") \
     .option("endingOffsets", "latest") \
     .load()
 
+# ---------------------------
 # --- Data Parsing ---
+# ---------------------------
 parsed_df = df.select(from_json(col("value").cast("string"), cash_flow_schema).alias("data")) \
-    .select("data.*")
+              .select("data.*")
 
-########################################
-## Data Validation and Print Counts ##
-########################################
-
+# ---------------------------
+# --- Data Validation ---
+# ---------------------------
 try:
     row_count = parsed_df.count()
     column_count = len(parsed_df.columns)
-
     print("#############################")
     print(f"--- DataFrame Dimensions ---")
     print(f"Total Rows: **{row_count}**")
     print(f"Total Columns: **{column_count}**")
     print("#############################")
-
 except Exception as e:
     print(f"Error during count operation: {e}")
 
-# --- Local Save Operation ---
-# Use repartition(1) to ensure only ONE output file is created locally
-parsed_df.repartition(1) \
-    .write \
-    .format("csv") \
-    .option("header", "true") \
-    .mode("overwrite") \
-    .save(LOCAL_TEMP_PATH)
+# ---------------------------
+# --- Write CSV (single file) ---
+# ---------------------------
+parsed_df.coalesce(1).write.mode("overwrite").option("header", "true").csv(OUTPUT_PATH)
 
-print(f"Data successfully read from Kafka and saved to local disk as CSV at {LOCAL_TEMP_PATH}")
-print(f"Next step: Manually move the file to HDFS using the command below.")
-print(f"Final HDFS Path: {FINAL_HDFS_PATH}")
+print(f"\nCSV saved successfully written to {OUTPUT_PATH}")
+print("Run this to see it:")
+print(f"  hdfs dfs -ls {OUTPUT_PATH}")
+print(f"  hdfs dfs -cat {OUTPUT_PATH}/part-*.csv | head")
 
-# Stop Spark session
 spark.stop()
+print("\nDone! Your file is ready")
+

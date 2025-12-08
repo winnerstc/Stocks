@@ -4,90 +4,186 @@ pipeline {
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
 
-        // CRITICAL: Forces Python 3.6 → avoids cloudpickle / PySpark version issues
+        // Force Python 3.6 to avoid cloudpickle / PySpark issues
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
                       '--conf spark.pyspark.driver.python=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
 
-        // All Spark memory settings safely above minimum required by Spark 2.4
+        // Spark memory settings
         DRIVER_MEMORY = '768m'
         EXECUTOR_MEMORY = '768m'
         MEMORY_OVERHEAD = '256m'
         EXECUTOR_CORES = '1'
         NUM_EXECUTORS = '1'
+
+        // Spark Kafka package
+        SPARK_KAFKA_PACKAGE = 'org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8'
     }
 
     stages {
-        stage('1 – Producer: Push Fresh Data to Kafka') {
+        // ===========================
+        // === PRODUCERS ===
+        // ===========================
+        stage('1 – Producer: Balance Sheet') {
             steps {
-                echo '=== Running Producer ==='
+                echo '=== Running Balance Sheet Producer ==='
                 sh """
                     ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory ${EXECUTOR_MEMORY} \
-                      --executor-cores ${EXECUTOR_CORES} \
-                      --num-executors ${NUM_EXECUTORS} \
-                      --driver-memory ${DRIVER_MEMORY} \
-                      --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      ${PYTHON_CONF} \
-                      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
-                      balance-sheet/producer-balance-sheet-statement.py
+                        --master yarn \
+                        --deploy-mode client \
+                        --executor-memory ${EXECUTOR_MEMORY} \
+                        --executor-cores ${EXECUTOR_CORES} \
+                        --num-executors ${NUM_EXECUTORS} \
+                        --driver-memory ${DRIVER_MEMORY} \
+                        --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.dynamicAllocation.enabled=false \
+                        ${PYTHON_CONF} \
+                        --packages ${SPARK_KAFKA_PACKAGE} \
+                        balance-sheet/producer-balance-sheet-statement.py
                 """
-                echo 'Producer finished – fresh data pushed to Kafka'
+                echo 'Balance Sheet Producer finished – data pushed to Kafka'
             }
         }
 
-        stage('2 – Consumer: Save Fresh CSV to HDFS') {
+        stage('2 – Producer: Cash Flow') {
             steps {
-                echo '=== Running Consumer ==='
-                // NOTES FOR FUTURE AI / HUMANS:
-                //   • Executor and driver memory = 768m → above Spark 2.4 minimum (471 MB)
-                //   • Memory overhead = 256m → avoids ApplicationMaster crashes on YARN
-                //   • Python 3.6 enforced → avoids PySpark serialization issues
+                echo '=== Running Cash Flow Producer ==='
                 sh """
                     ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory ${EXECUTOR_MEMORY} \
-                      --executor-cores ${EXECUTOR_CORES} \
-                      --num-executors ${NUM_EXECUTORS} \
-                      --driver-memory ${DRIVER_MEMORY} \
-                      --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.shuffle.service.enabled=false \
-                      --conf spark.yarn.am.memory=${DRIVER_MEMORY} \
-                      --conf spark.yarn.am.cores=${EXECUTOR_CORES} \
-                      ${PYTHON_CONF} \
-                      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
-                      balance-sheet/consumer-balance-sheet-statement.py
+                        --master yarn \
+                        --deploy-mode client \
+                        --executor-memory ${EXECUTOR_MEMORY} \
+                        --executor-cores ${EXECUTOR_CORES} \
+                        --num-executors ${NUM_EXECUTORS} \
+                        --driver-memory ${DRIVER_MEMORY} \
+                        --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.dynamicAllocation.enabled=false \
+                        ${PYTHON_CONF} \
+                        --packages ${SPARK_KAFKA_PACKAGE} \
+                        cash-flow/producer-cash-flow-statement.py
                 """
-                echo 'Consumer finished – CSV saved to HDFS (/tmp/balance_output)'
+                echo 'Cash Flow Producer finished – data pushed to Kafka'
             }
         }
 
-        stage('3 – Show Result') {
+        stage('3 – Producer: Income Statement') {
             steps {
-                echo '=== Showing Fresh CSV ==='
+                echo '=== Running Income Statement Producer ==='
+                sh """
+                    ${SPARK_SUBMIT} \
+                        --master yarn \
+                        --deploy-mode client \
+                        --executor-memory ${EXECUTOR_MEMORY} \
+                        --executor-cores ${EXECUTOR_CORES} \
+                        --num-executors ${NUM_EXECUTORS} \
+                        --driver-memory ${DRIVER_MEMORY} \
+                        --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.dynamicAllocation.enabled=false \
+                        ${PYTHON_CONF} \
+                        --packages ${SPARK_KAFKA_PACKAGE} \
+                        income/producer-income-statement.py
+                """
+                echo 'Income Statement Producer finished – data pushed to Kafka'
+            }
+        }
+
+        // ===========================
+        // === CONSUMERS ===
+        // ===========================
+        stage('4 – Consumer: Balance Sheet') {
+            steps {
+                echo '=== Running Balance Sheet Consumer ==='
+                sh """
+                    ${SPARK_SUBMIT} \
+                        --master yarn \
+                        --deploy-mode client \
+                        --executor-memory ${EXECUTOR_MEMORY} \
+                        --executor-cores ${EXECUTOR_CORES} \
+                        --num-executors ${NUM_EXECUTORS} \
+                        --driver-memory ${DRIVER_MEMORY} \
+                        --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.dynamicAllocation.enabled=false \
+                        ${PYTHON_CONF} \
+                        --packages ${SPARK_KAFKA_PACKAGE} \
+                        balance-sheet/consumer-balance-sheet-statement.py
+                """
+                echo 'Balance Sheet Consumer finished – CSV saved to HDFS (/tmp/balance_output)'
+            }
+        }
+
+        stage('5 – Consumer: Cash Flow') {
+            steps {
+                echo '=== Running Cash Flow Consumer ==='
+                sh """
+                    ${SPARK_SUBMIT} \
+                        --master yarn \
+                        --deploy-mode client \
+                        --executor-memory ${EXECUTOR_MEMORY} \
+                        --executor-cores ${EXECUTOR_CORES} \
+                        --num-executors ${NUM_EXECUTORS} \
+                        --driver-memory ${DRIVER_MEMORY} \
+                        --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.dynamicAllocation.enabled=false \
+                        ${PYTHON_CONF} \
+                        --packages ${SPARK_KAFKA_PACKAGE} \
+                        cash-flow/consumer-cash-flow-statement.py
+                """
+                echo 'Cash Flow Consumer finished – CSV saved to HDFS (/tmp/cash_flow_output)'
+            }
+        }
+
+        stage('6 – Consumer: Income Statement') {
+            steps {
+                echo '=== Running Income Statement Consumer ==='
+                sh """
+                    ${SPARK_SUBMIT} \
+                        --master yarn \
+                        --deploy-mode client \
+                        --executor-memory ${EXECUTOR_MEMORY} \
+                        --executor-cores ${EXECUTOR_CORES} \
+                        --num-executors ${NUM_EXECUTORS} \
+                        --driver-memory ${DRIVER_MEMORY} \
+                        --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
+                        --conf spark.dynamicAllocation.enabled=false \
+                        ${PYTHON_CONF} \
+                        --packages ${SPARK_KAFKA_PACKAGE} \
+                        income/consumer-income-statement.py
+                """
+                echo 'Income Statement Consumer finished – CSV saved to HDFS (/tmp/income_statement_output)'
+            }
+        }
+
+        stage('7 – Show Results') {
+            steps {
+                echo '=== Showing Fresh CSVs ==='
                 sh '''
+                    echo "Balance Sheet:"
                     hdfs dfs -ls -h /tmp/balance_output/
-                    echo ""
-                    echo "First 10 rows:"
                     hdfs dfs -cat /tmp/balance_output/part-*.csv | head -10
                     echo ""
-                    echo "Download with:"
-                    echo "hdfs dfs -getmerge /tmp/balance_output balance_sheet_$(date +%Y%m%d_%H%M).csv"
+
+                    echo "Cash Flow:"
+                    hdfs dfs -ls -h /tmp/cash_flow_output/
+                    hdfs dfs -cat /tmp/cash_flow_output/part-*.csv | head -10
+                    echo ""
+
+                    echo "Income Statement:"
+                    hdfs dfs -ls -h /tmp/income_statement_output/
+                    hdfs dfs -cat /tmp/income_statement_output/part-*.csv | head -10
                 '''
             }
         }
     }
 
     post {
-        success { echo 'SUCCESS – Fresh CSV is ready at /tmp/balance_output' }
+        success { echo 'SUCCESS – Fresh CSVs for all statements are ready in /tmp/' }
         failure { echo 'FAILED – check YARN logs or ResourceManager UI (likely memory / executor configuration issue)' }
     }
 }
