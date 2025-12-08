@@ -2,14 +2,15 @@ pipeline {
     agent any
 
     parameters {
-        booleanParam(name: 'RUN_PRODUCER', defaultValue: false, description: 'Run Stage 1 – Producer')
+        booleanParam(name: 'RUN_PRODUCER', defaultValue: false, description: 'Run the producer to push fresh data to Kafka')
     }
 
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
 
+        // This fixes the Python 3.9 cloudpickle crash forever
         PYTHON_CONF = '''
-            --conf spark.pyspark.pyspark.python=/usr/bin/python3.6 \
+            --conf spark.pyspark.python=/usr/bin/python3.6 \
             --conf spark.pyspark.driver.python=/usr/bin/python3.6 \
             --conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 \
             --conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6 \
@@ -18,13 +19,11 @@ pipeline {
 
     stages {
         stage('1 – Balance Sheet Producer') {
-            when {
-                expression { params.RUN_PRODUCER == true }
-            }
+            when { expression { params.RUN_PRODUCER } }
             steps {
-                echo "========================================"
-                echo "STAGE 1: Starting Producer"
-                echo "========================================"
+                echo "==========================================="
+                echo "STAGE 1: Running Producer (pushing data to Kafka)"
+                echo "==========================================="
                 sh '''
                     ${SPARK_SUBMIT} \
                       --master yarn \
@@ -43,26 +42,26 @@ pipeline {
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/producer-balance-sheet-statement.py
                 '''
-                echo "Producer completed - Data sent to Kafka"
+                echo "Producer finished"
             }
         }
 
         stage('2 – Balance Sheet Consumer → CSV') {
             steps {
-                echo "========================================"
-                echo "STAGE 2: Starting Consumer → saving CSV to /tmp/balance_output"
-                echo "========================================"
+                echo "==========================================="
+                echo "STAGE 2: Reading Kafka → Saving CSV to /tmp/balance_output"
+                echo "==========================================="
                 sh '''
                     ${SPARK_SUBMIT} \
                       --master yarn \
                       --deploy-mode client \
-                      --executor-memory 1g \
-                      --executor-cores 2 \
-                      --num-executors 2 \
-                      --driver-memory 1g \
+                      --executor-memory 512m \
+                      --executor-cores 1 \
+                      --num-executors 1 \
+                      --driver-memory 512m \
                       ${PYTHON_CONF} \
-                      --conf spark.executor.memoryOverhead=256m \
-                      --conf spark.driver.memoryOverhead=256m \
+                      --conf spark.executor.memoryOverhead=128m \
+                      --conf spark.driver.memoryOverhead=128m \
                       --conf spark.dynamicAllocation.enabled=false \
                       --conf spark.shuffle.service.enabled=false \
                       --conf spark.yarn.maxAppAttempts=1 \
@@ -70,20 +69,20 @@ pipeline {
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
                 '''
-                echo "Consumer completed — CSV saved to /tmp/balance_output"
+                echo "Consumer finished — CSV saved!"
             }
         }
 
         stage('3 – Verify Output') {
             steps {
-                echo "========================================"
-                echo "STAGE 3: Verification – Your CSV is ready"
-                echo "========================================"
+                echo "==========================================="
+                echo "STAGE 3: Your CSV is ready!"
+                echo "==========================================="
                 sh '''
-                    echo "=== HDFS LISTING ==="
+                    echo "=== HDFS CONTENTS ==="
                     hdfs dfs -ls /tmp/balance_output/
                     echo ""
-                    echo "=== FIRST 10 LINES OF CSV ==="
+                    echo "=== FIRST 10 LINES ==="
                     hdfs dfs -cat /tmp/balance_output/part-*.csv | head -10
                     echo ""
                     echo "=== DOWNLOAD COMMAND ==="
@@ -94,11 +93,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "PIPELINE SUCCESS – CSV ready at /tmp/balance_output"
-        }
-        failure {
-            echo "PIPELINE FAILED – check YARN logs"
-        }
+        success { echo "SUCCESS! Your clean CSV is at /tmp/balance_output" }
+        failure { echo "FAILED — check YARN logs" }
     }
 }
