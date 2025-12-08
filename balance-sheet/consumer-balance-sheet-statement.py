@@ -116,30 +116,37 @@ except Exception as e:
 spark.sql(f"CREATE DATABASE IF NOT EXISTS {HIVE_DATABASE}")
 print(f"✓ Database {HIVE_DATABASE} ready")
 
-# --- Check if Table Exists ---
-table_exists = spark.catalog.tableExists(f"{HIVE_DATABASE}.{HIVE_TABLE}")
+# --- Check if Table Exists (Spark 2.4 Compatible) ---
+try:
+    # Try to query the table - if it exists, this will succeed
+    spark.sql(f"DESCRIBE {HIVE_DATABASE}.{HIVE_TABLE}")
+    table_exists = True
+    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} exists.")
+except Exception:
+    table_exists = False
+    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} does not exist.")
 
 if not table_exists:
-    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} does not exist. Creating...")
-    
+    print(f"Creating table {HIVE_DATABASE}.{HIVE_TABLE}...")
+
     # Create managed table with CSV format
     parsed_df.write \
         .format("csv") \
         .option("header", "true") \
         .mode("overwrite") \
         .saveAsTable(f"{HIVE_DATABASE}.{HIVE_TABLE}")
-    
+
     print(f"✓ Table created: {HIVE_DATABASE}.{HIVE_TABLE}")
 else:
-    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} exists. Appending data...")
-    
+    print(f"Appending data to {HIVE_DATABASE}.{HIVE_TABLE}...")
+
     # Append to existing table
     parsed_df.write \
         .format("csv") \
         .option("header", "true") \
         .mode("append") \
         .saveAsTable(f"{HIVE_DATABASE}.{HIVE_TABLE}")
-    
+
     print(f"✓ Data appended to: {HIVE_DATABASE}.{HIVE_TABLE}")
 
 print(f"\nYou can now query in Hive/Hue with:")

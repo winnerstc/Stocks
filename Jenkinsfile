@@ -6,38 +6,10 @@ pipeline {
     }
     
     stages {
-        stage('1 – Balance Sheet Producer') {
+        stage('Balance Sheet Consumer') {
             steps {
                 echo "========================================"
-                echo "STAGE 1: Starting Producer"
-                echo "========================================"
-                sh '''
-                    ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory 512m \
-                      --executor-cores 1 \
-                      --num-executors 1 \
-                      --driver-memory 512m \
-                      --conf spark.executor.memoryOverhead=128m \
-                      --conf spark.driver.memoryOverhead=128m \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.shuffle.service.enabled=false \
-                      --conf spark.yarn.maxAppAttempts=1 \
-                      --conf spark.pyspark.python=python3 \
-                      --conf spark.pyspark.driver.python=python3 \
-                      --conf spark.yarn.am.waitTime=300s \
-                      --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
-                      balance-sheet/producer-balance-sheet-statement.py
-                '''
-                echo "✓ Producer completed - Data sent to Kafka"
-            }
-        }
-        
-        stage('2 – Balance Sheet Consumer') {
-            steps {
-                echo "========================================"
-                echo "STAGE 2: Starting Consumer (300 rows expected)"
+                echo "Starting Consumer (600 rows expected)"
                 echo "========================================"
                 sh '''
                     ${SPARK_SUBMIT} \
@@ -62,13 +34,13 @@ pipeline {
             }
         }
         
-        stage('3 – Verify Results') {
+        stage('Verify Results') {
             steps {
                 echo "========================================"
-                echo "STAGE 3: Verification"
+                echo "Verification"
                 echo "========================================"
                 sh '''
-                    echo "=== PIPELINE COMPLETE ==="
+                    echo "=== CONSUMER COMPLETE ==="
                     echo ""
                     echo "Data Location: alandb.balance_sheet (Hive table)"
                     echo ""
@@ -76,25 +48,26 @@ pipeline {
                     echo "  SELECT COUNT(*) FROM alandb.balance_sheet;"
                     echo "  SELECT * FROM alandb.balance_sheet LIMIT 10;"
                     echo ""
-                    echo "Expected: ~300 rows"
+                    echo "Expected: ~600 rows"
                 '''
             }
         }
     }
     
     post {
-        success { 
+        success {
             echo "========================================"
-            echo "✓✓✓ PIPELINE SUCCESS ✓✓✓"
+            echo "✓✓✓ CONSUMER SUCCESS ✓✓✓"
             echo "========================================"
-            echo "Producer: Data sent to Kafka"
-            echo "Consumer: Data saved to alandb.balance_sheet"
+            echo "Data saved to alandb.balance_sheet"
+            echo "Query your Hive table to verify"
         }
-        failure { 
+        failure {
             echo "========================================"
-            echo "✗✗✗ PIPELINE FAILED ✗✗✗"
+            echo "✗✗✗ CONSUMER FAILED ✗✗✗"
             echo "========================================"
             echo "Check YARN logs for details"
+            echo "Verify Kafka topic has data"
         }
     }
 }
