@@ -5,35 +5,21 @@ pipeline {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
         
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
-                      '--conf spark.pyspark.driver.python=/usr/bin/python3.6 ' +
-                      '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
-                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
+                      '--conf spark.pyspark.driver.python=/usr/bin/python3.6'
 
-        DRIVER_MEMORY = '512m'
-        EXECUTOR_MEMORY = '512m'     // CDH minimum requirement
-        MEMORY_OVERHEAD = '256m'
-        EXECUTOR_CORES = '1'
-        NUM_EXECUTORS = '1'
+        DRIVER_MEMORY = '1g'
+        EXECUTOR_MEMORY = '1g'
     }
 
     stages {
 
         stage('Producer: Balance Sheet') {
             steps {
-                echo '=== Running Balance Sheet Producer ==='
+                echo '=== Running Balance Sheet Producer (LOCAL) ==='
                 sh """
                     ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory ${EXECUTOR_MEMORY} \
-                      --executor-cores ${EXECUTOR_CORES} \
-                      --num-executors ${NUM_EXECUTORS} \
+                      --master local[*] \
                       --driver-memory ${DRIVER_MEMORY} \
-                      --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.default.parallelism=2 \
-                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/producer-balance-sheet-statement.py
@@ -44,20 +30,11 @@ pipeline {
 
         stage('Consumer: Balance Sheet') {
             steps {
-                echo '=== Running Balance Sheet Consumer ==='
+                echo '=== Running Balance Sheet Consumer (LOCAL) ==='
                 sh """
                     ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory ${EXECUTOR_MEMORY} \
-                      --executor-cores ${EXECUTOR_CORES} \
-                      --num-executors ${NUM_EXECUTORS} \
+                      --master local[*] \
                       --driver-memory ${DRIVER_MEMORY} \
-                      --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.default.parallelism=2 \
-                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
@@ -68,20 +45,11 @@ pipeline {
 
         stage('Producer: Income Statement') {
             steps {
-                echo '=== Running Income Statement Producer ==='
+                echo '=== Running Income Statement Producer (LOCAL) ==='
                 sh """
                     ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory ${EXECUTOR_MEMORY} \
-                      --executor-cores ${EXECUTOR_CORES} \
-                      --num-executors ${NUM_EXECUTORS} \
+                      --master local[*] \
                       --driver-memory ${DRIVER_MEMORY} \
-                      --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.default.parallelism=2 \
-                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       income/producer-income-statement.py
@@ -92,20 +60,11 @@ pipeline {
 
         stage('Consumer: Income Statement') {
             steps {
-                echo '=== Running Income Statement Consumer ==='
+                echo '=== Running Income Statement Consumer (LOCAL) ==='
                 sh """
                     ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory ${EXECUTOR_MEMORY} \
-                      --executor-cores ${EXECUTOR_CORES} \
-                      --num-executors ${NUM_EXECUTORS} \
+                      --master local[*] \
                       --driver-memory ${DRIVER_MEMORY} \
-                      --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.default.parallelism=2 \
-                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       income/consumer-income-statement.py
@@ -116,20 +75,11 @@ pipeline {
 
         stage('Producer: Cash Flow') {
             steps {
-                echo '=== Running Cash Flow Producer ==='
+                echo '=== Running Cash Flow Producer (LOCAL) ==='
                 sh """
                     ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory ${EXECUTOR_MEMORY} \
-                      --executor-cores ${EXECUTOR_CORES} \
-                      --num-executors ${NUM_EXECUTORS} \
+                      --master local[*] \
                       --driver-memory ${DRIVER_MEMORY} \
-                      --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.default.parallelism=2 \
-                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       cash-flow/producer-cash-flow-statement.py
@@ -140,20 +90,11 @@ pipeline {
 
         stage('Consumer: Cash Flow') {
             steps {
-                echo '=== Running Cash Flow Consumer ==='
+                echo '=== Running Cash Flow Consumer (LOCAL) ==='
                 sh """
                     ${SPARK_SUBMIT} \
-                      --master yarn \
-                      --deploy-mode client \
-                      --executor-memory ${EXECUTOR_MEMORY} \
-                      --executor-cores ${EXECUTOR_CORES} \
-                      --num-executors ${NUM_EXECUTORS} \
+                      --master local[*] \
                       --driver-memory ${DRIVER_MEMORY} \
-                      --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
-                      --conf spark.dynamicAllocation.enabled=false \
-                      --conf spark.default.parallelism=2 \
-                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       cash-flow/consumer-cash-flow-statement.py
@@ -176,8 +117,8 @@ pipeline {
     }
 
     post {
-        success { echo 'SUCCESS – All producers and consumers finished successfully' }
-        failure { echo 'FAILED – check YARN logs (http://ip-172-31-3-80:8088) or kill stuck jobs: yarn application -list' }
+        success { echo 'SUCCESS – All producers and consumers finished successfully (LOCAL mode)' }
+        failure { echo 'FAILED – check Jenkins console output' }
     }
 }
 
