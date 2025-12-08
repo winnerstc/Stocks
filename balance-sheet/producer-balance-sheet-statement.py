@@ -18,19 +18,19 @@ BOOTSTRAP_SERVERS = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 kafka_topic = "balance-sheet-statement-topic"
 TIMEOUT = 2  # Timeout between each API call pause
 
-# *** UPDATED: TICKERS SYNCHRONIZED WITH CASH FLOW PRODUCER ***
-TICKERS = ["NVDA", "AAPL", "MSFT", "AVGO", "GOOGL", "UNH", "MRK", "JPM", "V", "BAC",
-           "PYPL", "C", "XOM", "CVX", "MRO", "WMT", "COST", "TGT"]
+# List of tickers
+TICKERS = ["NVDA", "AAPL", "MSFT", "GOOGL", "UNH", "MRK", "JPM", "V", "BAC",
+           "PYPL", "C", "XOM", "CVX", "MRO", "WMT", "COST"]
 QUARTERS = ["Q1", "Q2", "Q3", "Q4"]
 
-# Map ticker symbols to full company names (Updated to match cash producer's structure)
+# Map ticker symbols to full company names
 TICKER_NAME_MAP = {
-    "NVDA": "NVIDIA Corp", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.", "AVGO": "Broadcom Inc.",
+    "NVDA": "NVIDIA Corp", "AAPL": "Apple Inc.", "MSFT": "Microsoft Corp.",
     "GOOGL": "Alphabet Inc. (Class A)", "UNH": "UnitedHealth Group Inc.", "MRK": "Merck & Co., Inc.",
     "JPM": "JPMorgan Chase & Co.", "V": "Visa Inc.", "BAC": "Bank of America Corp.",
     "PYPL": "PayPal Holdings, Inc.", "C": "Citigroup Inc.", "XOM": "Exxon Mobil Corp.",
     "CVX": "Chevron Corp.", "MRO": "Marathon Oil Corp.", "WMT": "Walmart Inc.",
-    "COST": "Costco Wholesale Corp.", "TGT": "Target Corp."
+    "COST": "Costco Wholesale Corp."
 }
 
 # Kafka producer
