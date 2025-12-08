@@ -11,10 +11,10 @@ pipeline {
                     ${SPARK_SUBMIT} \
                       --master yarn \
                       --deploy-mode client \
-                      --executor-memory 256m \
+                      --executor-memory 512m \
                       --executor-cores 1 \
                       --num-executors 1 \
-                      --driver-memory 256m \
+                      --driver-memory 512m \
                       --conf spark.executor.memoryOverhead=128m \
                       --conf spark.driver.memoryOverhead=128m \
                       --conf spark.dynamicAllocation.enabled=false \
@@ -22,6 +22,7 @@ pipeline {
                       --conf spark.yarn.maxAppAttempts=1 \
                       --conf spark.pyspark.python=python3 \
                       --conf spark.pyspark.driver.python=python3 \
+                      --conf spark.yarn.am.waitTime=300s \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
                 '''
@@ -43,3 +44,4 @@ pipeline {
         failure { echo "Pipeline failed - check logs above" }
     }
 }
+
