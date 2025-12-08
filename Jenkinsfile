@@ -3,26 +3,21 @@ pipeline {
 
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
-
-        // Enforce Python 3.6 → avoids cloudpickle / PySpark version issues
+        
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
                       '--conf spark.pyspark.driver.python=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
 
-        // Spark memory / executor configuration (safe for most clusters)
-        DRIVER_MEMORY = '1g'
-        EXECUTOR_MEMORY = '1g'
-        MEMORY_OVERHEAD = '512m'
+        DRIVER_MEMORY = '512m'
+        EXECUTOR_MEMORY = '512m'
+        MEMORY_OVERHEAD = '256m'
         EXECUTOR_CORES = '1'
-        NUM_EXECUTORS = '2'
+        NUM_EXECUTORS = '1'
     }
 
     stages {
 
-        // =========================
-        // 1 – Balance Sheet Producer
-        // =========================
         stage('Producer: Balance Sheet') {
             steps {
                 echo '=== Running Balance Sheet Producer ==='
@@ -45,9 +40,6 @@ pipeline {
             }
         }
 
-        // =========================
-        // 2 – Balance Sheet Consumer
-        // =========================
         stage('Consumer: Balance Sheet') {
             steps {
                 echo '=== Running Balance Sheet Consumer ==='
@@ -70,9 +62,6 @@ pipeline {
             }
         }
 
-        // =========================
-        // 3 – Income Statement Producer
-        // =========================
         stage('Producer: Income Statement') {
             steps {
                 echo '=== Running Income Statement Producer ==='
@@ -95,9 +84,6 @@ pipeline {
             }
         }
 
-        // =========================
-        // 4 – Income Statement Consumer
-        // =========================
         stage('Consumer: Income Statement') {
             steps {
                 echo '=== Running Income Statement Consumer ==='
@@ -120,9 +106,6 @@ pipeline {
             }
         }
 
-        // =========================
-        // 5 – Cash Flow Producer
-        // =========================
         stage('Producer: Cash Flow') {
             steps {
                 echo '=== Running Cash Flow Producer ==='
@@ -145,9 +128,6 @@ pipeline {
             }
         }
 
-        // =========================
-        // 6 – Cash Flow Consumer
-        // =========================
         stage('Consumer: Cash Flow') {
             steps {
                 echo '=== Running Cash Flow Consumer ==='
@@ -170,9 +150,6 @@ pipeline {
             }
         }
 
-        // =========================
-        // 7 – Show Result of Balance Sheet CSV
-        // =========================
         stage('Show Balance Sheet CSV') {
             steps {
                 echo '=== Showing Balance Sheet CSV ==='
