@@ -20,11 +20,11 @@ pipeline {
         // =========================
         // Resource settings tuned for your cluster (3 nodes, 8GB RAM each)
         // =========================
-        DRIVER_MEMORY = '512m'
-        EXECUTOR_MEMORY = '512m'
-        MEMORY_OVERHEAD = '256m'
+        DRIVER_MEMORY = '1g'
+        EXECUTOR_MEMORY = '1g'
+        MEMORY_OVERHEAD = '512m'
         EXECUTOR_CORES = '1'
-        NUM_EXECUTORS = '1'
+        NUM_EXECUTORS = '2'
     }
 
     stages {
