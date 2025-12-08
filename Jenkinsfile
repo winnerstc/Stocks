@@ -7,11 +7,13 @@ pipeline {
         PYTHON_CONF = '--conf spark.pyspark.python=/usr/bin/python3.6 ' +
                       '--conf spark.pyspark.driver.python=/usr/bin/python3.6 ' +
                       '--conf spark.yarn.appMasterEnv.PYSPARK_PYTHON=/usr/bin/python3.6 ' +
-                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6'
+                      '--conf spark.yarn.appMasterEnv.PYSPARK_DRIVER_PYTHON=/usr/bin/python3.6 ' +
+                      '--conf spark.sql.adaptive.enabled=false ' +
+                      '--conf spark.sql.adaptive.coalescePartitions.enabled=false'
 
         DRIVER_MEMORY = '512m'
-        EXECUTOR_MEMORY = '512m'
-        MEMORY_OVERHEAD = '256m'
+        EXECUTOR_MEMORY = '384m'    // Further reduced
+        MEMORY_OVERHEAD = '192m'    // Further reduced  
         EXECUTOR_CORES = '1'
         NUM_EXECUTORS = '1'
     }
@@ -32,6 +34,8 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.default.parallelism=2 \
+                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/producer-balance-sheet-statement.py
@@ -54,6 +58,8 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.default.parallelism=2 \
+                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
@@ -76,6 +82,8 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.default.parallelism=2 \
+                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       income/producer-income-statement.py
@@ -98,6 +106,8 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.default.parallelism=2 \
+                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       income/consumer-income-statement.py
@@ -120,6 +130,8 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.default.parallelism=2 \
+                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       cash-flow/producer-cash-flow-statement.py
@@ -142,6 +154,8 @@ pipeline {
                       --conf spark.executor.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.driver.memoryOverhead=${MEMORY_OVERHEAD} \
                       --conf spark.dynamicAllocation.enabled=false \
+                      --conf spark.default.parallelism=2 \
+                      --conf spark.sql.shuffle.partitions=2 \
                       ${PYTHON_CONF} \
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       cash-flow/consumer-cash-flow-statement.py
@@ -165,7 +179,7 @@ pipeline {
 
     post {
         success { echo 'SUCCESS – All producers and consumers finished successfully' }
-        failure { echo 'FAILED – check YARN logs or ResourceManager UI (likely memory / executor configuration issue)' }
+        failure { echo 'FAILED – check YARN logs (http://ip-172-31-3-80:8088) or kill stuck jobs: yarn application -list' }
     }
 }
 
