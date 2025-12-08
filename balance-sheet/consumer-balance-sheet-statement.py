@@ -12,8 +12,7 @@ spark = SparkSession.builder \
 # --- Configuration ---
 kafka_bootstrap = "ip-172-31-14-3.eu-west-2.compute.internal:9092"
 topic = "balance-sheet-statement-topic"
-HIVE_DATABASE = "alandb"
-HIVE_TABLE = "balance_sheet"
+OUTPUT_PATH = "/user/jenkins/balance_sheet_data"  # Jenkins home directory in HDFS
 
 # --- Schema Definition ---
 json_schema = StructType([
@@ -112,46 +111,93 @@ try:
 except Exception as e:
     print(f"Error during count operation: {e}")
 
-# --- Ensure Database Exists ---
-spark.sql(f"CREATE DATABASE IF NOT EXISTS {HIVE_DATABASE}")
-print(f"✓ Database {HIVE_DATABASE} ready")
+# --- Save to HDFS (Jenkins has permissions here) ---
+print(f"Writing data to HDFS: {OUTPUT_PATH}")
 
-# --- Check if Table Exists (Spark 2.4 Compatible) ---
 try:
-    # Try to query the table - if it exists, this will succeed
-    spark.sql(f"DESCRIBE {HIVE_DATABASE}.{HIVE_TABLE}")
-    table_exists = True
-    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} exists.")
-except Exception:
-    table_exists = False
-    print(f"Table {HIVE_DATABASE}.{HIVE_TABLE} does not exist.")
-
-if not table_exists:
-    print(f"Creating table {HIVE_DATABASE}.{HIVE_TABLE}...")
-
-    # Create managed table with CSV format
+    # Write as CSV to HDFS location jenkins can access
     parsed_df.write \
         .format("csv") \
         .option("header", "true") \
         .mode("overwrite") \
-        .saveAsTable(f"{HIVE_DATABASE}.{HIVE_TABLE}")
-
-    print(f"✓ Table created: {HIVE_DATABASE}.{HIVE_TABLE}")
-else:
-    print(f"Appending data to {HIVE_DATABASE}.{HIVE_TABLE}...")
-
-    # Append to existing table
-    parsed_df.write \
-        .format("csv") \
-        .option("header", "true") \
-        .mode("append") \
-        .saveAsTable(f"{HIVE_DATABASE}.{HIVE_TABLE}")
-
-    print(f"✓ Data appended to: {HIVE_DATABASE}.{HIVE_TABLE}")
-
-print(f"\nYou can now query in Hive/Hue with:")
-print(f"  SELECT COUNT(*) FROM {HIVE_DATABASE}.{HIVE_TABLE};")
-print(f"  SELECT * FROM {HIVE_DATABASE}.{HIVE_TABLE} LIMIT 10;")
+        .save(OUTPUT_PATH)
+    
+    print(f"✓ Data successfully written to: {OUTPUT_PATH}")
+    print(f"\nTo load into Hive later, run in Hue/Beeline:")
+    print(f"""
+    CREATE EXTERNAL TABLE IF NOT EXISTS alandb.balance_sheet (
+        date STRING,
+        symbol STRING,
+        reportedCurrency STRING,
+        cik STRING,
+        filingDate STRING,
+        acceptedDate STRING,
+        fiscalYear STRING,
+        period STRING,
+        cashAndCashEquivalents BIGINT,
+        shortTermInvestments BIGINT,
+        cashAndShortTermInvestments BIGINT,
+        netReceivables BIGINT,
+        accountsReceivables BIGINT,
+        otherReceivables BIGINT,
+        inventory BIGINT,
+        prepaids BIGINT,
+        otherCurrentAssets BIGINT,
+        totalCurrentAssets BIGINT,
+        propertyPlantEquipmentNet BIGINT,
+        goodwill BIGINT,
+        intangibleAssets BIGINT,
+        goodwillAndIntangibleAssets BIGINT,
+        longTermInvestments BIGINT,
+        taxAssets BIGINT,
+        otherNonCurrentAssets BIGINT,
+        totalNonCurrentAssets BIGINT,
+        otherAssets BIGINT,
+        totalAssets BIGINT,
+        totalPayables BIGINT,
+        accountPayables BIGINT,
+        otherPayables BIGINT,
+        accruedExpenses BIGINT,
+        shortTermDebt BIGINT,
+        capitalLeaseObligationsCurrent BIGINT,
+        taxPayables BIGINT,
+        deferredRevenue BIGINT,
+        otherCurrentLiabilities BIGINT,
+        totalCurrentLiabilities BIGINT,
+        longTermDebt BIGINT,
+        deferredRevenueNonCurrent BIGINT,
+        deferredTaxLiabilitiesNonCurrent BIGINT,
+        otherNonCurrentLiabilities BIGINT,
+        totalNonCurrentLiabilities BIGINT,
+        otherLiabilities BIGINT,
+        capitalLeaseObligations BIGINT,
+        totalLiabilities BIGINT,
+        treasuryStock BIGINT,
+        preferredStock BIGINT,
+        commonStock BIGINT,
+        retainedEarnings BIGINT,
+        additionalPaidInCapital BIGINT,
+        accumulatedOtherComprehensiveIncomeLoss BIGINT,
+        otherTotalStockholdersEquity BIGINT,
+        totalStockholdersEquity BIGINT,
+        totalEquity BIGINT,
+        minorityInterest BIGINT,
+        totalLiabilitiesAndTotalEquity BIGINT,
+        totalInvestments BIGINT,
+        totalDebt BIGINT,
+        netDebt BIGINT,
+        companyName STRING
+    )
+    ROW FORMAT DELIMITED
+    FIELDS TERMINATED BY ','
+    STORED AS TEXTFILE
+    LOCATION '{OUTPUT_PATH}'
+    TBLPROPERTIES ('skip.header.line.count'='1');
+    """)
+    
+except Exception as e:
+    print(f"Error writing to HDFS: {e}")
+    raise
 
 # Stop Spark session
 spark.stop()
