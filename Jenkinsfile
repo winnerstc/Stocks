@@ -1,14 +1,10 @@
 pipeline {
     agent any
 
-    parameters {
-        booleanParam(name: 'RUN_PRODUCER', defaultValue: false, description: 'Run the producer to push fresh data to Kafka')
-    }
-
     environment {
         SPARK_SUBMIT = '/opt/cloudera/parcels/CDH-7.1.7-1.cdh7.1.7.p0.15945976/bin/spark-submit'
 
-        // This fixes the Python 3.9 cloudpickle crash forever
+        // Forces Python 3.6 → no more cloudpickle crashes
         PYTHON_CONF = '''
             --conf spark.pyspark.python=/usr/bin/python3.6 \
             --conf spark.pyspark.driver.python=/usr/bin/python3.6 \
@@ -18,11 +14,10 @@ pipeline {
     }
 
     stages {
-        stage('1 – Balance Sheet Producer') {
-            when { expression { params.RUN_PRODUCER } }
+        stage('1 – Balance Sheet Producer (Push Fresh Data)') {
             steps {
                 echo "==========================================="
-                echo "STAGE 1: Running Producer (pushing data to Kafka)"
+                echo "STAGE 1: Running Producer – pushing fresh balance sheet data to Kafka"
                 echo "==========================================="
                 sh '''
                     ${SPARK_SUBMIT} \
@@ -42,14 +37,14 @@ pipeline {
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/producer-balance-sheet-statement.py
                 '''
-                echo "Producer finished"
+                echo "Producer finished – fresh data in Kafka"
             }
         }
 
         stage('2 – Balance Sheet Consumer → CSV') {
             steps {
                 echo "==========================================="
-                echo "STAGE 2: Reading Kafka → Saving CSV to /tmp/balance_output"
+                echo "STAGE 2: Consuming from Kafka → writing CSV to /tmp/balance_output"
                 echo "==========================================="
                 sh '''
                     ${SPARK_SUBMIT} \
@@ -69,31 +64,30 @@ pipeline {
                       --packages org.apache.spark:spark-sql-kafka-0-10_2.12:2.4.8 \
                       balance-sheet/consumer-balance-sheet-statement.py
                 '''
-                echo "Consumer finished — CSV saved!"
+                echo "Consumer finished – CSV ready!"
             }
         }
 
-        stage('3 – Verify Output') {
+        stage('3 – Show Result') {
             steps {
                 echo "==========================================="
-                echo "STAGE 3: Your CSV is ready!"
+                echo "YOUR FRESH CSV IS READY"
                 echo "==========================================="
                 sh '''
-                    echo "=== HDFS CONTENTS ==="
-                    hdfs dfs -ls /tmp/balance_output/
+                    hdfs dfs -ls -h /tmp/balance_output/
                     echo ""
-                    echo "=== FIRST 10 LINES ==="
+                    echo "Preview first 10 rows:"
                     hdfs dfs -cat /tmp/balance_output/part-*.csv | head -10
                     echo ""
-                    echo "=== DOWNLOAD COMMAND ==="
-                    echo "hdfs dfs -getmerge /tmp/balance_output balance_sheet_full.csv"
+                    echo "Download with:"
+                    echo "hdfs dfs -getmerge /tmp/balance_output balance_sheet_fresh.csv"
                 '''
             }
         }
     }
 
     post {
-        success { echo "SUCCESS! Your clean CSV is at /tmp/balance_output" }
-        failure { echo "FAILED — check YARN logs" }
+        success { echo "SUCCESS – Fresh balance sheet data saved as CSV in /tmp/balance_output" }
+        failure { echo "FAILED – check YARN logs" }
     }
 }
