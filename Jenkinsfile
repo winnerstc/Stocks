@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        PYSPARK_PYTHON = 'python2'
+        PYSPARK_PYTHON = 'python3'
     }
 
     triggers {
